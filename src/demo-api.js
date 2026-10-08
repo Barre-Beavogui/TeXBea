@@ -17,7 +17,6 @@ export async function demoApi(path,opt={}){
  else if(parts[0]==='projects'){
  const p=db.find(p=>p.id===parts[1]);if(!p)fail('Projet introuvable',404);
  if(parts.length===2)result=p;
- else if(parts[2]==='compile')fail('La compilation PDF nécessite le serveur TeX Live. Cet espace d’essai permet l’édition, la sauvegarde locale et l’historique.',503);
  else if(parts[2]==='files'){
  const n=decodeURIComponent(parts[3]||body.name||'');if(!/^[\w.\- ]{1,120}$/.test(n)||n.includes('..')||n.startsWith('.'))fail('Nom de fichier invalide');
  if(method==='DELETE'){if(n===p.main)fail('Impossible de supprimer le fichier principal');delete p.files[n];result=p}

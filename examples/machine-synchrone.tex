@@ -1,0 +1,84 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage[margin=2cm]{geometry}
+\usepackage{amsmath}
+\usepackage{tikz}
+\usetikzlibrary{decorations.pathmorphing,arrows.meta,calc}
+\definecolor{phA}{RGB}{200,30,30}
+\definecolor{phB}{RGB}{20,130,60}
+\definecolor{phC}{RGB}{25,80,190}
+\definecolor{axD}{RGB}{225,110,0}
+\definecolor{axQ}{RGB}{130,40,170}
+\definecolor{exc}{RGB}{190,20,120}
+\definecolor{amo}{RGB}{0,130,140}
+\definecolor{statF}{RGB}{225,230,238}
+\definecolor{rotF}{RGB}{255,240,200}
+\newcommand{\phase}[3]{%
+  \begin{scope}[rotate=#1]
+    \draw[#3,thick,-{Stealth[length=3mm]}] (0,0) -- (6.2,0);
+    \draw[#3,very thick,decorate,
+          decoration={coil,aspect=0.35,segment length=2.4mm,amplitude=4.5mm}]
+          (3.9,0) -- (5.1,0);
+    \draw[#3,thick] (4.0,0) -- (4.0,-0.95) (5.0,0) -- (5.0,-0.95);
+    \draw[#3,thick,fill=white] (4.0,-0.95) circle (0.07) (5.0,-0.95) circle (0.07);
+    \draw[#3,thick,-{Stealth}] (4.17,-0.95) -- (4.83,-0.95);
+    \node[#3] at (4.5,-1.3) {$v_{#2}$};
+    \draw[#3,thick,-{Stealth}] (5.22,-0.85) -- (5.22,-0.2);
+    \node[#3] at (5.55,-0.55) {$i_{#2}$};
+    \node[#3] at (6.5,0) {$#2$};
+  \end{scope}}
+\begin{document}
+L'axe $oq$ est en quadrature avance par rapport à l'axe $od$ dans le sens
+trigonométrique (termes en sinus $-$ dans la matrice de \textsc{Park}).
+\medskip
+$\theta$ est l'angle que fait l'axe du pôle et l'axe de la phase $a$ du stator
+(mesuré dans le sens de rotation du rotor).
+\begin{figure}[h!]
+\centering
+\begin{tikzpicture}[scale=0.95,>=Stealth,font=\small]
+  \filldraw[fill=statF,draw=black,thick,even odd rule]
+        (0,0) circle (3.2) (0,0) circle (2.65);
+  \begin{scope}[rotate=45]
+    \filldraw[fill=rotF,draw=black,thick] (-1.95,-0.55) rectangle (1.95,0.55);
+    \foreach \s in {0,180}{
+      \filldraw[fill=rotF,draw=black,thick,rotate=\s]
+        (-55:1.95) arc (-55:55:1.95) -- (55:2.5) arc (55:-55:2.5) -- cycle;
+      \foreach \a in {-48,-32,-16,0,16,32,48}
+        \filldraw[fill=white,draw=amo,very thick,rotate=\s] (\a:2.23) circle (0.11);
+    }
+    \foreach \x in {-1.25,-1.05,-0.85,-0.65,0.5,0.7,0.9,1.1}
+      \draw[exc,thick] (\x,-0.55) -- (\x+0.15,0.55);
+    \draw[exc,thick,dashed] (-0.5,0.55) -- (0.5,-0.55);
+    \draw[exc,thick] (-0.65,-0.55) -- (-0.4,-1.45) (0.5,-0.55) -- (0.4,-1.45);
+    \draw[exc,thick,fill=white] (-0.4,-1.45) circle (0.07) (0.4,-1.45) circle (0.07);
+    \draw[exc,thick,-{Stealth}] (0.27,-1.45) -- (-0.27,-1.45);
+    \node[exc] at (0,-1.78) {$v_f$};
+    \draw[exc,thick,-{Stealth}] (-0.95,-1.3) -- (-0.82,-0.7);
+    \node[exc] at (-1.2,-1.05) {$i_f$};
+    \filldraw[fill=white,draw=black,thick] (0,0) circle (0.16);
+  \end{scope}
+  \draw[axD,very thick,-{Stealth[length=3.5mm]}] (225:4.0) -- (45:5.6)
+        node[right] {\large $d$};
+  \draw[axQ,very thick,-{Stealth[length=3.5mm]}] (315:4.0) -- (135:5.6)
+        node[left] {\large $q$};
+  \node[axD,anchor=north west,align=left,font=\small\itshape] at (4.25,3.75)
+        {axe direct\\(ou polaire ou longitudinal)};
+  \node[axQ,anchor=north east,align=right,font=\small\itshape] at (-4.25,3.75)
+        {axe en quadrature\\(ou interpolaire\\ou transversal)};
+  \phase{0}{a}{phA}
+  \phase{120}{b}{phB}
+  \phase{240}{c}{phC}
+  \node[phA,font=\small\itshape] at (7.3,0) {(réf)};
+  \draw[black,thick,-{Stealth}] (0:3.45) arc (0:45:3.45);
+  \node at (38:3.8) {$\theta$};
+  \draw[amo] (29:2.34)  -- (27:4.35)  node[right] {1};
+  \draw[amo] (13:2.34)  -- (17:4.1)   node[right] {2};
+  \draw[amo] (-3:2.34)  -- (10:3.75)  node[right] {3};
+  \draw[amo] (77:2.34)  -- (80:4.2)   node[above] {$2'$};
+  \draw[amo] (257:2.34) -- (263:4.2)  node[below] {$2''$};
+\end{tikzpicture}
+\par\medskip\textbf{Figure 1 :} Machine synchrone triphasée avec amortisseurs
+\end{figure}
+\end{document}

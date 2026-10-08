@@ -81,7 +81,7 @@ Le code est séparé de façon à pouvoir brancher tes innovations dans de nouve
 
 ## Espace d’essai hébergé
 
-Le mode `VITE_DEMO=true` utilise le stockage du navigateur pour essayer projets, fichiers et historique sans compte. Il ne compile pas de PDF et ne synchronise pas les utilisateurs. Le mode normal conserve le serveur complet.
+Le mode `VITE_DEMO=true` conserve projets, fichiers et historique dans le navigateur et compile de vrais PDF avec pdfTeX WebAssembly (SwiftLaTeX). Il ne synchronise pas plusieurs utilisateurs. Le mode normal conserve le serveur Express avec latexmk.
 
 Espace d’essai : https://texnova-v2-lab.guibea7.chatgpt.site (connexion au compte propriétaire requise).
 
@@ -94,3 +94,11 @@ npm run preview
 ```
 
 Le dépôt GitHub est public. Le site d’essai reste accessible au propriétaire connecté.
+
+## Compilation dans le navigateur
+
+Clique sur **Compiler PDF**. Deux passes résolvent les références ; le résultat apparaît dans l’aperçu et peut être téléchargé. Le journal reste disponible, y compris en cas d’erreur. Le moteur s’exécute dans un Web Worker et s’arrête après trois minutes en cas de blocage.
+
+Le moteur est inclus dans `public/latex/`. Les paquets et polices manquants sont téléchargés à la demande depuis `https://texlive.texlyre.org/` ; une connexion Internet et la disponibilité de ce miroir sont nécessaires. Le document est compilé localement : le miroir reçoit des noms de fichiers de paquets, pas le contenu du document. Cette version utilise pdfTeX/TeX Live 2020 ; les paquets récents, les appels système et certaines chaînes de compilation avancées peuvent nécessiter le serveur local.
+
+Validation : document français avec Babel, TikZ, decorations.pathmorphing, arrows.meta et calc, sauvegarde avant compilation, affichage du PDF et erreur de commande LaTeX inconnue. L’exemple `examples/machine-synchrone.tex` reprend le dessin fourni.
