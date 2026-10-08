@@ -1,6 +1,6 @@
 const key='texnova-lab-projects';
 const starter=String.raw`\documentclass{article}
-\title{Mon expérience TeXNova}
+\title{Mon expérience TeXBea}
 \begin{document}
 \maketitle
 \section{Bonjour}

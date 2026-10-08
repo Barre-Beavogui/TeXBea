@@ -1,6 +1,6 @@
-# TeXNova V2 — socle LaTeX utilisable
+# TeXBea V2 — socle LaTeX utilisable
 
-TeXNova V2 transforme le prototype V1 en une application full-stack locale prête à servir de base à une alternative à Overleaf. La V2 reste volontairement centrée sur le socle : tes innovations pourront être développées en V3 sans dépendre d'idées imposées ici.
+TeXBea V2 transforme le prototype V1 en une application full-stack locale prête à servir de base à une alternative à Overleaf. La V2 reste volontairement centrée sur le socle : tes innovations pourront être développées en V3 sans dépendre d'idées imposées ici.
 
 ## Inclus
 - Comptes locaux avec mots de passe hachés via `scrypt` (Node.js).
@@ -15,7 +15,7 @@ TeXNova V2 transforme le prototype V1 en une application full-stack locale prêt
 - Historique manuel (20 snapshots) + restauration.
 - Synchronisation de modifications entre onglets/clients via WebSocket (socle temps réel).
 - Téléchargement du fichier `.tex` actif.
-- Interface TeXNova sombre et responsive.
+- Interface TeXBea sombre et responsive.
 
 ## Démarrage rapide
 Prérequis : Node.js 22.12+ (ou une version LTS plus récente).
@@ -62,7 +62,7 @@ Le serveur Express sert automatiquement `dist/` si le build existe. Port par dé
 
 ## Architecture
 - `src/main.jsx` : client React, éditeur, projets, historique, PDF.
-- `src/style.css` : design TeXNova.
+- `src/style.css` : design TeXBea.
 - `server/index.js` : API, authentification, stockage, compilation, WebSocket.
 - `server/data/db.json` : créé automatiquement au premier compte.
 - `server/pdfs/` : PDF compilés.
@@ -110,3 +110,13 @@ Sur téléphone, les onglets **Code** et **PDF** donnent accès aux deux panneau
 Un double-clic sur le texte du PDF recherche ce fragment dans les fichiers `.tex`, ouvre le fichier correspondant, sélectionne le texte et fait défiler l’éditeur jusqu’à sa ligne. Les numéros de lignes suivent le défilement. Cette navigation utilise le texte extrait par PDF.js, pas SyncTeX : les formules, macros qui génèrent du texte et occurrences ambiguës peuvent ne pas donner une correspondance exacte. Dans ce cas l’interface indique qu’elle ne trouve pas la ligne, au lieu de prétendre avoir une position précise.
 
 Vérifications : vue 1280 px, 1024 px, 768 px, 390 px et 320 px ; accès aux fichiers sur mobile ; code/PDF accessibles sans débordement de la page ; retour d’un titre PDF vers la ligne 111 d’un fichier secondaire ; défilement de l’éditeur et du PDF ; zoom par geste au pavé tactile.
+
+## TeXBea
+
+Le projet s’appelle désormais **TeXBea**. Dépôt : https://github.com/Barre-Beavogui/TeXBea.
+
+L’accueil regroupe la liste des projets, la recherche, le tri par nom ou modification et une carte pour reprendre le dernier document. La création de projet utilise un formulaire. L’atelier place le PDF à gauche, le code au centre et les fichiers à droite, avec une palette bleu encre et cuivre. Les onglets de navigation sont conservés sur mobile.
+
+L’adresse hébergée reste https://texnova-v2-lab.guibea7.chatgpt.site afin de préserver les projets enregistrés dans le navigateur sur cette origine. L’identifiant interne de stockage est également conservé ; les documents existants ne sont pas renommés ni réécrits.
+
+Validation : recherche, création, reprise et navigation de projets ; compilation du dessin TikZ ; retour du PDF au source ; accueil et atelier en 320, 390, 768, 1024 et 1440 pixels.
