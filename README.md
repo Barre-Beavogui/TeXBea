@@ -82,3 +82,15 @@ Le code est séparé de façon à pouvoir brancher tes innovations dans de nouve
 ## Espace d’essai hébergé
 
 Le mode `VITE_DEMO=true` utilise le stockage du navigateur pour essayer projets, fichiers et historique sans compte. Il ne compile pas de PDF et ne synchronise pas les utilisateurs. Le mode normal conserve le serveur complet.
+
+Espace d’essai : https://texnova-v2-lab.guibea7.chatgpt.site (connexion au compte propriétaire requise).
+
+Pour construire cet espace :
+
+```bash
+npm ci
+npm run build:demo
+npm run preview
+```
+
+Le dépôt GitHub est public. Le site d’essai reste accessible au propriétaire connecté.

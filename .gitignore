@@ -5,6 +5,7 @@ server/pdfs/
 .env
 .env.*
 !.env.example
+!.env.demo
 *.log
 .DS_Store
 coverage/
