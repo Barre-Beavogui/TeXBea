@@ -15,10 +15,10 @@
     "concurrently": "latest",
     "express": "latest",
     "lucide-react": "latest",
+    "pdfjs-dist": "^6.4.299",
     "react": "latest",
     "react-dom": "latest",
     "vite": "latest",
     "ws": "latest"
-  },
-  "devDependencies": {}
+  }
 }

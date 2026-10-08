@@ -102,3 +102,11 @@ Clique sur **Compiler PDF**. Deux passes résolvent les références ; le résul
 Le moteur est inclus dans `public/latex/`. Les paquets et polices manquants sont téléchargés à la demande depuis `https://texlive.texlyre.org/` ; une connexion Internet et la disponibilité de ce miroir sont nécessaires. Le document est compilé localement : le miroir reçoit des noms de fichiers de paquets, pas le contenu du document. Cette version utilise pdfTeX/TeX Live 2020 ; les paquets récents, les appels système et certaines chaînes de compilation avancées peuvent nécessiter le serveur local.
 
 Validation : document français avec Babel, TikZ, decorations.pathmorphing, arrows.meta et calc, sauvegarde avant compilation, affichage du PDF et erreur de commande LaTeX inconnue. L’exemple `examples/machine-synchrone.tex` reprend le dessin fourni.
+
+## Navigation et petits écrans
+
+Sur téléphone, les onglets **Code** et **PDF** donnent accès aux deux panneaux ; **Fichiers** ouvre la liste des sources. Sur ordinateur, l’éditeur et le PDF restent côte à côte. Chaque panneau défile indépendamment, horizontalement et verticalement, avec deux doigts au pavé tactile. Le pincement au-dessus du PDF ajuste son zoom ; le bouton d’ajustement restaure la largeur disponible.
+
+Un double-clic sur le texte du PDF recherche ce fragment dans les fichiers `.tex`, ouvre le fichier correspondant, sélectionne le texte et fait défiler l’éditeur jusqu’à sa ligne. Les numéros de lignes suivent le défilement. Cette navigation utilise le texte extrait par PDF.js, pas SyncTeX : les formules, macros qui génèrent du texte et occurrences ambiguës peuvent ne pas donner une correspondance exacte. Dans ce cas l’interface indique qu’elle ne trouve pas la ligne, au lieu de prétendre avoir une position précise.
+
+Vérifications : vue 1280 px, 1024 px, 768 px, 390 px et 320 px ; accès aux fichiers sur mobile ; code/PDF accessibles sans débordement de la page ; retour d’un titre PDF vers la ligne 111 d’un fichier secondaire ; défilement de l’éditeur et du PDF ; zoom par geste au pavé tactile.
