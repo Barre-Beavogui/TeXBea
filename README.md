@@ -78,3 +78,7 @@ Cette V2 est un **socle réellement exécutable**, mais pas encore une infrastru
 
 ## V3
 Le code est séparé de façon à pouvoir brancher tes innovations dans de nouveaux composants/routes sans réécrire le compilateur, l'authentification ou la gestion des projets.
+
+## Espace d’essai hébergé
+
+Le mode `VITE_DEMO=true` utilise le stockage du navigateur pour essayer projets, fichiers et historique sans compte. Il ne compile pas de PDF et ne synchronise pas les utilisateurs. Le mode normal conserve le serveur complet.
