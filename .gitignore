@@ -1,0 +1,14 @@
+node_modules/
+dist/
+server/data/
+server/pdfs/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+coverage/
+*.pem
+*.key
+*.p12
+*.pfx
