@@ -120,3 +120,7 @@ L’accueil regroupe la liste des projets, la recherche, le tri par nom ou modif
 L’adresse hébergée reste https://texnova-v2-lab.guibea7.chatgpt.site afin de préserver les projets enregistrés dans le navigateur sur cette origine. L’identifiant interne de stockage est également conservé ; les documents existants ne sont pas renommés ni réécrits.
 
 Validation : recherche, création, reprise et navigation de projets ; compilation du dessin TikZ ; retour du PDF au source ; accueil et atelier en 320, 390, 768, 1024 et 1440 pixels.
+
+## Coloration LaTeX
+
+L’éditeur distingue les commandes (cuivre), commentaires (gris), formules (violet), nombres (doré), accolades et environnements (cyan). La coloration conserve exactement le source et suit le défilement dans les deux directions. Les équations entre `$`, `$$`, `\(`, `\[` et les environnements mathématiques usuels sont reconnues.
