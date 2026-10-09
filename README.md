@@ -124,3 +124,11 @@ Validation : recherche, création, reprise et navigation de projets ; compilatio
 ## Coloration LaTeX
 
 L’éditeur distingue les commandes (cuivre), commentaires (gris), formules (violet), nombres (doré), accolades et environnements (cyan). La coloration conserve exactement le source et suit le défilement dans les deux directions. Les équations entre `$`, `$$`, `\(`, `\[` et les environnements mathématiques usuels sont reconnues.
+
+## GitHub Pages
+
+Site public : https://barre-beavogui.github.io/TeXBea/
+
+Chaque envoi sur `main` lance le workflow `.github/workflows/pages.yml`, construit la version navigateur et la publie sur GitHub Pages. Le moteur LaTeX et le lecteur PDF prennent en charge le sous-chemin du dépôt. Le serveur Express n’est pas exécuté par GitHub Pages ; cette version compile réellement les PDF dans le navigateur.
+
+Les projets sont enregistrés par adresse de site. Les documents de l’ancienne adresse ne sont donc pas transférés automatiquement vers GitHub Pages ; exporte tes fichiers `.tex` depuis l’ancien site pour les conserver.

@@ -25,7 +25,7 @@ function waitFor(test, action, timeout = 180000) {
 }
 async function load() {
   if (ready) return ready;
-  worker = new Worker('/latex/swiftlatexpdftex.js');
+  worker = new Worker(`${import.meta.env.BASE_URL}latex/swiftlatexpdftex.js`);
   ready = waitFor(data => !data.cmd && data.result === 'ok', undefined, 45000);
   worker.onmessage = ({data}) => {
     if (pending?.test(data)) pending.resolve(data);
