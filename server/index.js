@@ -15,7 +15,7 @@ const starter=String.raw`\documentclass[11pt]{article}
 \usepackage[margin=2.5cm]{geometry}
 \usepackage{amsmath}
 \usepackage{xcolor}
-\title{Bienvenue sur TeXBea V2}
+\title{Bienvenue sur TeXBea V2 n'hesitez pas a laisser des commentaires pour la sortie du V3}
 \author{Votre nom}
 \date{\today}
 \begin{document}
