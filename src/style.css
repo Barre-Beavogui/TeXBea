@@ -1894,69 +1894,267 @@ button.link:hover,
   text-align: left;
   font-weight: 400;
 }
-.ai-setup {
+.assistant-panel.chatting {
+  height: min(840px, calc(100dvh - 32px));
+  overflow: hidden;
+}
+.bea-chat {
+  position: relative;
   display: flex;
   flex-direction: column;
+  flex: 1;
+  min-height: 0;
   gap: 10px;
-  padding: 12px;
-  border-radius: var(--radius);
+}
+.bea-chat.dragging::after {
+  content: 'Dépose l’image ou le document ici';
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  border: 2px dashed var(--accent);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  color: var(--accent-text);
+  font-weight: 600;
+  pointer-events: none;
+}
+.chat-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.chat-bar select {
+  width: auto;
+  max-width: 220px;
+}
+.chat-memory {
+  flex: 1;
+  color: var(--text-3);
+  font-size: 12px;
+}
+.chat-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 4px 2px;
+}
+.chat-empty {
+  margin: auto 0;
+  padding: 18px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+  color: var(--text-2);
+  text-align: center;
+}
+.chat-empty b {
+  color: var(--text);
+  font: 600 16px var(--font-serif);
+}
+.chat-empty p {
+  margin: 6px 0 14px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.chat-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+}
+.assistant-panel .chat-suggestions button {
+  border-radius: 999px;
+  font-size: 12px;
+  white-space: normal;
+}
+.chat-msg {
+  max-width: 88%;
+  padding: 10px 13px;
+  border-radius: var(--radius-lg);
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+.chat-msg.user {
+  align-self: flex-end;
+  background: var(--accent-soft);
+  border-bottom-right-radius: 4px;
+}
+.chat-msg.assistant {
+  align-self: flex-start;
   background: var(--surface-2);
   border: 1px solid var(--border);
+  border-bottom-left-radius: 4px;
 }
-.ai-setup label,
-.ai-question,
-.proposal-placement {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  color: var(--text);
-  font-size: 12px;
-  font-weight: 600;
+.chat-msg p,
+.chat-msg ul,
+.chat-msg ol {
+  margin: 0 0 6px;
 }
-.ai-setup p,
-.ai-context {
-  font-size: 12px;
+.chat-msg > :last-child {
+  margin-bottom: 0;
 }
-.ai-setup progress {
+.chat-msg ul,
+.chat-msg ol {
+  padding-left: 20px;
+}
+.chat-msg li + li {
+  margin-top: 3px;
+}
+.chat-msg h4 {
+  margin: 8px 0 4px;
+  font-size: 13.5px;
+}
+.chat-msg code {
+  padding: 0 4px;
+  border-radius: 4px;
+  background: var(--surface-3);
+  font: 12.5px var(--font-mono);
+}
+.chat-msg progress {
   width: 100%;
   accent-color: var(--accent);
 }
-.model-ready {
-  color: var(--success);
-  font-weight: 600;
-  font-size: 13px;
+.chat-wait {
+  color: var(--text-3);
+  font-style: italic;
 }
-.ai-shortcuts,
-.ai-send {
+.chat-code {
+  margin: 6px 0 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  overflow: hidden;
+}
+.chat-code pre {
+  margin: 0;
+  max-height: 300px;
+  overflow: auto;
+  padding: 10px 12px;
+  font: 12.5px/1.6 var(--font-mono);
+  white-space: pre-wrap;
+}
+.chat-code-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+  padding: 6px 8px;
+  border-top: 1px solid var(--border);
+  background: var(--surface-2);
 }
-.assistant-panel .ai-shortcuts button {
-  border-radius: 999px;
+.assistant-panel .chat-code-actions button {
+  min-height: 28px;
   font-size: 12px;
 }
-.ai-question textarea {
-  min-height: 90px;
-  resize: vertical;
-  font-weight: 400;
+.chat-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 6px;
 }
-.ai-answer {
+.chat-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 220px;
+  padding: 3px 6px 3px 3px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text-2);
+  font-size: 12px;
+}
+.chat-chip > svg {
+  margin-left: 4px;
+}
+.chat-chip img {
+  width: 34px;
+  height: 34px;
+  object-fit: cover;
+  border-radius: 4px;
+}
+.chat-chip span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.assistant-panel .chat-chip button {
+  min-height: 0;
+  padding: 2px;
+  border: 0;
+  background: transparent;
+}
+.chat-composer {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 6px;
 }
-.ai-answer pre {
-  margin: 0;
-  max-height: 320px;
-  overflow: auto;
-  padding: 12px;
-  border-radius: var(--radius);
-  border: 1px solid var(--border);
-  background: var(--surface-2);
-  color: var(--text);
-  font: 12.5px/1.6 var(--font-mono);
-  white-space: pre-wrap;
+.chat-input {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  padding: 6px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+.chat-input:focus-within {
+  border-color: var(--accent);
+  box-shadow: var(--focus);
+}
+.chat-input textarea {
+  flex: 1;
+  min-height: 36px;
+  max-height: 160px;
+  padding: 8px 4px;
+  border: 0;
+  background: transparent;
+  resize: none;
+  field-sizing: content;
+  box-shadow: none;
+  outline: none;
+}
+.assistant-panel .chat-input button {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  min-height: 36px;
+  padding: 0;
+  justify-content: center;
+}
+.chat-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-3);
+  font-size: 12px;
+}
+.chat-option input {
+  width: auto;
+}
+@media (max-width: 760px) {
+  .assistant-panel.chatting {
+    padding: 16px 14px;
+  }
+  .assistant-panel .assistant-tabs button {
+    padding-inline: 6px;
+    white-space: normal;
+  }
+  .chat-bar select {
+    max-width: 170px;
+  }
+  .chat-memory {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .chat-msg {
+    max-width: 96%;
+  }
 }
 
 /* ---------- Project library ---------- */

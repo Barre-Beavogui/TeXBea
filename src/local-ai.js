@@ -43,7 +43,8 @@ export async function activateAI(model, onProgress) {
       worker,
       `${model}-${suffix}`,
       { initProgressCallback: (report) => onProgress({ progress: report.progress, text: 'Chargement du modèle…' }) },
-      { context_window_size: 4096 },
+      // Text models get a larger window so Bea remembers more of the conversation; the vision model is built for 4k.
+      { context_window_size: isVisionModel(model) ? 4096 : 8192 },
     ),
     new Promise((_, reject) => {
       cancelLoading = () => reject(Error('Chargement annulé.'));
@@ -80,9 +81,17 @@ export function stopGeneration() {
   engine?.interruptGenerate();
 }
 // Streams a chat completion; returns the full text. Shared by the assistant panel and the in-editor actions.
-export async function generate({ messages, onToken, maxTokens = 1200, temperature = 0.2 }) {
+export async function generate({ messages, onToken, maxTokens = 1200, temperature = 0.2, frequencyPenalty = 0.3 }) {
   if (!engine) throw Error('Active un modèle local avant de demander quelque chose à Bea.');
-  const stream = await engine.chat.completions.create({ messages, temperature, max_tokens: maxTokens, stream: true });
+  const stream = await engine.chat.completions.create({
+    messages,
+    temperature,
+    max_tokens: maxTokens,
+    // Small models tend to loop on the same list item; a penalty on repeated tokens keeps answers varied.
+    frequency_penalty: frequencyPenalty,
+    presence_penalty: 0.1,
+    stream: true,
+  });
   let output = '';
   const timer = setTimeout(() => engine?.interruptGenerate(), 120000);
   try {
@@ -96,7 +105,7 @@ export async function generate({ messages, onToken, maxTokens = 1200, temperatur
   }
 }
 // Photo → LaTeX with the vision model. The image goes as a data URL; nothing leaves the device.
-export async function readImage({ image, prompt, onToken }) {
+export async function readImage({ image, prompt, onToken, maxTokens = 1200 }) {
   if (!engine || !isVisionModel(currentModel)) throw Error('Active le modèle de vision avant d’envoyer une photo.');
   return generate({
     messages: [
@@ -109,7 +118,8 @@ export async function readImage({ image, prompt, onToken }) {
       },
     ],
     temperature: 0.1,
-    maxTokens: 1200,
+    maxTokens,
+    frequencyPenalty: 0.2,
     onToken,
   });
 }

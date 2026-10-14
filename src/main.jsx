@@ -1180,6 +1180,7 @@ function App() {
               setAssistantPrompt('');
             }}
             onJump={(line) => jumpTo(lineRange(code, line))}
+            projectId={project.id}
             onInsert={insertSuggestion}
           />
         </Suspense>
