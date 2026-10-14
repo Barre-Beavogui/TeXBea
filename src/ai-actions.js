@@ -57,6 +57,13 @@ export const aiActions = [
     hidden: true,
     task: 'Corrige ce passage pour supprimer l’erreur de compilation indiquée. Modifie le moins possible.',
   },
+  {
+    id: 'photo',
+    label: 'Photo → code LaTeX…',
+    mode: 'block',
+    vision: true,
+    task: 'Transcris fidèlement en LaTeX tout le contenu de cette image : texte, titres, formules ($…$ dans le texte, equation ou align pour les formules isolées), tableaux (tabular), listes (itemize ou enumerate). Garde la langue de l’image. Ne résous pas les exercices, ne commente pas.',
+  },
   { id: 'custom', label: 'Consigne libre…', mode: 'replace', task: '' },
 ];
 export const actionById = (id) => aiActions.find((a) => a.id === id);
@@ -102,6 +109,7 @@ export function lineWindow(source, line, radius = 2) {
 // Chooses what Bea works on: the selection, else the current paragraph (replace) or the cursor (insert).
 export function targetFor(source, selection, action) {
   const { start, end } = selection;
+  if (action.mode === 'block') return { from: start, to: end };
   if (action.mode === 'insert') return { from: end, to: end };
   if (start !== end) return { from: start, to: end };
   return paragraphAt(source, start);
@@ -142,7 +150,24 @@ export function extractCode(output = '') {
 }
 
 // Keeps the original's surrounding whitespace so a replaced paragraph stays separated from its neighbours.
-export function fitReplacement(original, proposal, mode = 'replace') {
+// Prompt for the vision model: it receives only the image and this text (no document context, the window is small).
+export function photoPrompt(instruction = '') {
+  const action = actionById('photo');
+  return (
+    action.task +
+    (instruction.trim() ? ' Consigne en plus : ' + instruction.trim() : '') +
+    ' Ne mets ni \\documentclass, ni préambule, ni \\begin{document}. Réponds uniquement avec le code dans un bloc ```latex.'
+  );
+}
+
+export function fitReplacement(original, proposal, mode = 'replace', after = '') {
+  // A transcribed photo goes on its own lines.
+  if (mode === 'block')
+    return (
+      (original && !original.endsWith('\n') ? '\n' : '') +
+      proposal.trim() +
+      (after && !after.startsWith('\n') ? '\n' : '')
+    );
   if (mode === 'insert') return (original && !/\s$/.test(original) ? ' ' : '') + proposal;
   const lead = original.match(/^\s*/)[0],
     trail = original.match(/\s*$/)[0];
@@ -181,4 +206,10 @@ export function diffWords(before = '', after = '') {
     else push('add', b[j++]);
   }
   return out;
+}
+
+// Keeps only the body when a model returns a whole document anyway.
+export function documentBody(code = '') {
+  const m = code.match(/\\begin\{document\}([\s\S]*?)(?:\\end\{document\}|$)/);
+  return (m ? m[1] : code).replace(/\\maketitle\s*/g, '').trim();
 }

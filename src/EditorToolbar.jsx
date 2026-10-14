@@ -14,6 +14,7 @@ import {
   X,
   Sparkles,
   ChevronDown,
+  Camera,
 } from 'lucide-react';
 import { aiActions } from './ai-actions.js';
 
@@ -280,6 +281,13 @@ export default function EditorToolbar({ editor, onBea }) {
               <Sparkles size={15} />
               Bea
               <ChevronDown size={13} />
+            </button>
+            <button
+              title="Photo → LaTeX : Bea transcrit une formule, un tableau ou une page (tu peux aussi coller ou glisser une image dans le code)"
+              aria-label="Photo vers LaTeX"
+              onClick={() => onBea('photo')}
+            >
+              <Camera size={15} />
             </button>
             <span className="toolbar-sep" />
           </>

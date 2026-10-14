@@ -51,6 +51,8 @@ import {
   projectSymbols,
 } from './latex-completions.js';
 
+import { imageFrom } from './image-input.js';
+
 const latex = StreamLanguage.define(stex);
 
 const darkColors = {
@@ -323,6 +325,25 @@ const CodeEditor = forwardRef(function CodeEditor(
         compartments.brackets.of(d.brackets),
         compartments.spell.of(d.spell),
         EditorView.contentAttributes.of({ 'aria-label': 'Code LaTeX' }),
+        // A pasted or dropped image goes to Bea, who writes its LaTeX at that place.
+        EditorView.domEventHandlers({
+          paste: (event) => {
+            const file = imageFrom(event.clipboardData);
+            if (!file || !callbacks.current.actions?.image || event.clipboardData.getData('text/plain')) return false;
+            event.preventDefault();
+            callbacks.current.actions.image(file);
+            return true;
+          },
+          drop: (event, v) => {
+            const file = imageFrom(event.dataTransfer);
+            if (!file || !callbacks.current.actions?.image) return false;
+            event.preventDefault();
+            const pos = v.posAtCoords({ x: event.clientX, y: event.clientY });
+            if (pos != null) v.dispatch({ selection: { anchor: pos } });
+            callbacks.current.actions.image(file);
+            return true;
+          },
+        }),
         keymap.of([
           { key: 'Mod-s', run: run('save'), preventDefault: true },
           { key: 'Mod-Enter', run: run('compile'), preventDefault: true },

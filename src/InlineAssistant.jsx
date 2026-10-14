@@ -1,8 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Sparkles, X, Check, RotateCcw, Square, Download } from 'lucide-react';
-import { buildMessages, extractCode, diffWords, fitReplacement } from './ai-actions.js';
+import { buildMessages, extractCode, diffWords, fitReplacement, photoPrompt, documentBody } from './ai-actions.js';
 import {
   aiModels,
+  visionModels,
+  isVisionModel,
+  readImage,
   activateAI,
   cancelActivation,
   loadedModel,
@@ -15,8 +18,12 @@ import {
 // (or applies them at once with the "apply directly" setting). Every edit is undoable with Ctrl/Cmd+Z.
 export default function InlineAssistant({ request, editor, autoApply, onAutoApplyChange, onClose, notify }) {
   const { action } = request;
-  const [model, setModel] = useState(loadedModel() || preferredModel()),
-    [ready, setReady] = useState(!!loadedModel()),
+  const vision = !!action.vision,
+    models = vision ? visionModels : aiModels;
+  // Photos need the vision model; text actions use the text models.
+  const usable = (id) => !!id && isVisionModel(id) === vision;
+  const [model, setModel] = useState(usable(loadedModel()) ? loadedModel() : vision ? models[0].id : preferredModel()),
+    [ready, setReady] = useState(usable(loadedModel())),
     [loading, setLoading] = useState(false),
     [progress, setProgress] = useState(0),
     [instruction, setInstruction] = useState(request.instruction || ''),
@@ -26,8 +33,8 @@ export default function InlineAssistant({ request, editor, autoApply, onAutoAppl
     [error, setError] = useState(''),
     [applied, setApplied] = useState(false);
   const run = useRef(0);
-  const proposal = extractCode(output);
-  const insert = action.mode === 'insert';
+  const proposal = vision ? documentBody(extractCode(output)) : extractCode(output);
+  const insert = action.mode !== 'replace';
 
   async function activate() {
     setError('');
@@ -48,18 +55,21 @@ export default function InlineAssistant({ request, editor, autoApply, onAutoAppl
     setOutput('');
     setApplied(false);
     try {
-      const text = await generate({
-        messages: buildMessages({
-          ...request,
-          instruction,
-          text: insert ? request.before : request.original,
-          before: insert ? '' : request.before,
-        }),
-        maxTokens: Math.min(1500, Math.ceil(request.original.length / 2.5) + 400),
-        onToken: (t) => id === run.current && setOutput(t),
-      });
+      const onToken = (t) => id === run.current && setOutput(t);
+      const text = vision
+        ? await readImage({ image: request.image, prompt: photoPrompt(instruction), onToken })
+        : await generate({
+            messages: buildMessages({
+              ...request,
+              instruction,
+              text: insert ? request.before : request.original,
+              before: insert ? '' : request.before,
+            }),
+            maxTokens: Math.min(1500, Math.ceil(request.original.length / 2.5) + 400),
+            onToken,
+          });
       if (id !== run.current) return;
-      const code = extractCode(text);
+      const code = vision ? documentBody(extractCode(text)) : extractCode(text);
       if (!code.trim()) setError('Bea n’a rien proposé. Réessaie ou reformule la consigne.');
       else if (!insert && code.trim() === request.original.trim())
         setError('Bea ne voit rien à changer dans ce passage.');
@@ -71,7 +81,7 @@ export default function InlineAssistant({ request, editor, autoApply, onAutoAppl
     }
   }
   function apply(code = proposal) {
-    const text = fitReplacement(insert ? request.before : request.original, code, action.mode);
+    const text = fitReplacement(insert ? request.before : request.original, code, action.mode, request.after);
     const ok = editor.current?.replaceRange(request.from, request.to, request.original, text);
     if (!ok) {
       setError('Le passage a été modifié pendant que Bea travaillait. Relance l’action.');
@@ -113,6 +123,19 @@ export default function InlineAssistant({ request, editor, autoApply, onAutoAppl
           <X size={15} />
         </button>
       </div>
+      {vision && (
+        <div className="inline-photo">
+          <img src={request.image} alt="Photo à transcrire" />
+          {ready && !busy && !applied && (
+            <input
+              aria-label="Précision pour la photo"
+              placeholder="Précision facultative (ex. : seulement le tableau), puis Réessayer"
+              value={instruction}
+              onChange={(e) => setInstruction(e.target.value)}
+            />
+          )}
+        </div>
+      )}
       {!ready ? (
         <div className="inline-setup">
           <select
@@ -121,7 +144,7 @@ export default function InlineAssistant({ request, editor, autoApply, onAutoAppl
             disabled={loading}
             onChange={(e) => setModel(e.target.value)}
           >
-            {aiModels.map((m) => (
+            {models.map((m) => (
               <option key={m.id} value={m.id}>
                 {m.name}
               </option>
@@ -131,7 +154,11 @@ export default function InlineAssistant({ request, editor, autoApply, onAutoAppl
             <Download size={14} />
             {loading ? 'Chargement… ' + Math.round(progress * 100) + ' %' : 'Activer Bea (IA locale gratuite)'}
           </button>
-          <small>Une seule fois : le modèle est ensuite gardé par le navigateur. Rien ne quitte ton appareil.</small>
+          <small>
+            {vision
+              ? 'Le modèle de vision lit la photo sur ton appareil. Premier téléchargement d’environ 2,5 Go, puis gardé par le navigateur. Il faut une carte graphique récente (Mac M1 ou plus, ou 6 Go de mémoire vidéo).'
+              : 'Une seule fois : le modèle est ensuite gardé par le navigateur. Rien ne quitte ton appareil.'}
+          </small>
           {loading && <progress max={1} value={progress} />}
         </div>
       ) : !asked ? (
@@ -160,7 +187,7 @@ export default function InlineAssistant({ request, editor, autoApply, onAutoAppl
       ) : (
         <>
           <div className="inline-preview" aria-live="polite">
-            {!output && busy && <p className="inline-wait">Bea lit le passage…</p>}
+            {!output && busy && <p className="inline-wait">{vision ? 'Bea lit la photo…' : 'Bea lit le passage…'}</p>}
             {output &&
               (insert ? (
                 <pre>

@@ -6,6 +6,7 @@ import { compileInBrowser, cancelCompile } from './browser-compiler.js';
 import { compilers, effectiveCompiler, magicProgram, needsUnicodeEngine } from './compilers.js';
 import { parseLatexLog } from './log-parser.js';
 import { actionById, targetFor, lineWindow } from './ai-actions.js';
+import { prepareImage } from './image-input.js';
 import { loadSettings, saveSettings } from './settings.js';
 import { demoApi } from './demo-api.js';
 import CodeEditor from './CodeEditor.jsx';
@@ -170,6 +171,7 @@ function App() {
     compiling = useRef(false),
     editorRef = useRef(),
     uploadRef = useRef(),
+    photoRef = useRef(),
     assistantSelection = useRef();
   useEffect(
     () => () => {
@@ -545,10 +547,14 @@ function App() {
     openAssistant();
   }
   // Starts Bea on the selection (or the paragraph under the cursor) of the open file.
-  function startBea(actionId = 'custom', instruction = '') {
+  function startBea(actionId = 'custom', instruction = '', image) {
     const ed = editorRef.current;
     if (!ed) return;
     const action = actionById(actionId);
+    if (action.vision && !image) {
+      photoRef.current?.click();
+      return;
+    }
     const { from, to } = targetFor(code, ed.selection(), action);
     const original = code.slice(from, to);
     if (action.mode === 'replace' && !original.trim()) {
@@ -563,6 +569,7 @@ function App() {
       id: Date.now(),
       action,
       instruction,
+      image,
       file: active,
       from,
       to,
@@ -572,6 +579,14 @@ function App() {
       lines:
         action.mode === 'insert' ? `ligne ${first}` : first === last ? `ligne ${first}` : `lignes ${first}–${last}`,
     });
+  }
+  // A photo (file picker, camera on a phone, paste or drop in the editor) that Bea turns into LaTeX at the cursor.
+  async function startPhoto(file) {
+    try {
+      startBea('photo', '', await prepareImage(file));
+    } catch (e) {
+      notify(e.message);
+    }
   }
   // From the log: Bea rewrites the lines around the error, with the error message as context.
   async function fixWithBea(entry) {
@@ -971,6 +986,17 @@ function App() {
             <span>V3</span>
           </div>
           <EditorToolbar editor={editorRef} onBea={startBea} />
+          <input
+            ref={photoRef}
+            hidden
+            type="file"
+            accept="image/*"
+            aria-label="Photo à transformer en LaTeX"
+            onChange={(e) => {
+              if (e.target.files[0]) startPhoto(e.target.files[0]);
+              e.target.value = '';
+            }}
+          />
           {beaRequest && beaRequest.file === active && (
             <Suspense fallback={null}>
               <InlineAssistant
@@ -1011,6 +1037,7 @@ function App() {
                 compile: () => compile(),
                 projectSearch: () => setProjectSearch(true),
                 bea: () => startBea('custom'),
+                image: startPhoto,
               }}
             />
           </div>

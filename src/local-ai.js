@@ -7,6 +7,11 @@ export const aiModels = [
   { name: 'Qwen 2.5 · le meilleur (7B, ~5 Go, GPU puissant)', id: 'Qwen2.5-7B-Instruct' },
   { name: 'Qwen 2.5 · compact (0,5B, ~400 Mo)', id: 'Qwen2.5-0.5B-Instruct' },
 ];
+// Reads photos: formulas, tables, printed or neatly handwritten pages.
+export const visionModels = [
+  { name: 'Phi 3.5 Vision · photo → LaTeX (~2,5 Go, 4,5 Go de mémoire GPU)', id: 'Phi-3.5-vision-instruct' },
+];
+export const isVisionModel = (id) => visionModels.some((m) => m.id === id);
 const MODEL_KEY = 'texbea-ai-model';
 export function preferredModel() {
   try {
@@ -48,7 +53,7 @@ export async function activateAI(model, onProgress) {
     engine = await initializing;
     currentModel = model;
     try {
-      localStorage.setItem(MODEL_KEY, model);
+      if (!isVisionModel(model)) localStorage.setItem(MODEL_KEY, model);
     } catch {
       // Not remembered for next time, which is harmless.
     }
@@ -89,6 +94,24 @@ export async function generate({ messages, onToken, maxTokens = 1200, temperatur
   } finally {
     clearTimeout(timer);
   }
+}
+// Photo → LaTeX with the vision model. The image goes as a data URL; nothing leaves the device.
+export async function readImage({ image, prompt, onToken }) {
+  if (!engine || !isVisionModel(currentModel)) throw Error('Active le modèle de vision avant d’envoyer une photo.');
+  return generate({
+    messages: [
+      {
+        role: 'user',
+        content: [
+          { type: 'image_url', image_url: { url: image } },
+          { type: 'text', text: prompt },
+        ],
+      },
+    ],
+    temperature: 0.1,
+    maxTokens: 1200,
+    onToken,
+  });
 }
 export async function askAI({ prompt, source, log, onToken }) {
   if (!engine) throw Error('Active un modèle local avant de poser une question.');

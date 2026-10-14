@@ -10,6 +10,8 @@ import {
   extractCode,
   fitReplacement,
   diffWords,
+  photoPrompt,
+  documentBody,
 } from '../src/ai-actions.js';
 
 const doc = 'Titre\n\nPremier paragraphe\nsur deux lignes.\n\nSecond paragraphe.';
@@ -78,4 +80,18 @@ test('diff par mots pour l’aperçu', () => {
       .join(''),
     'Les chat mange.',
   );
+});
+
+test('photo → LaTeX : consigne, corps du document et insertion sur sa propre ligne', () => {
+  const action = actionById('photo');
+  assert.equal(action.vision, true);
+  assert.deepEqual(targetFor('abc', { start: 2, end: 2 }, action), { from: 2, to: 2 });
+  assert.match(photoPrompt('seulement le tableau'), /seulement le tableau/);
+  assert.equal(
+    documentBody('\\documentclass{article}\n\\begin{document}\n\\maketitle\n$x^2$\n\\end{document}'),
+    '$x^2$',
+  );
+  assert.equal(documentBody('$x$'), '$x$');
+  assert.equal(fitReplacement('Texte', '$x$', 'block', '\n\\end{abstract}'), '\n$x$');
+  assert.equal(fitReplacement('Texte\n', '$x$', 'block', 'Suite'), '$x$\n');
 });
