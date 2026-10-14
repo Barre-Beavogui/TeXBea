@@ -245,10 +245,10 @@ function SymbolPalette({ onInsert, onClose }) {
 }
 
 // Formatting toolbar, like Overleaf's editor toolbar: everything inserts plain LaTeX at the cursor.
-function BeaMenu({ onPick }) {
+function BeaMenu({ onPick, onAssistant }) {
   return (
     <div className="toolbar-popover bea-menu" role="menu" aria-label="Actions de Bea">
-      <p>Sur la sélection, ou sur le paragraphe du curseur :</p>
+      <p>Sur la sélection, ou sur le paragraphe du curseur</p>
       {aiActions
         .filter((a) => !a.hidden)
         .map((a) => (
@@ -257,11 +257,19 @@ function BeaMenu({ onPick }) {
             {a.id === 'custom' && <kbd>Ctrl/Cmd+J</kbd>}
           </button>
         ))}
+      {onAssistant && (
+        <>
+          <hr />
+          <button role="menuitem" onClick={() => onPick(null)}>
+            Questions et analyse du document…
+          </button>
+        </>
+      )}
     </div>
   );
 }
 
-export default function EditorToolbar({ editor, onBea }) {
+export default function EditorToolbar({ editor, onBea, onAssistant }) {
   const [open, setOpen] = useState(null);
   const ed = () => editor.current;
   const insert = (s) => ed()?.insert(s);
@@ -380,9 +388,11 @@ export default function EditorToolbar({ editor, onBea }) {
       </div>
       {open === 'bea' && (
         <BeaMenu
+          onAssistant={onAssistant}
           onPick={(id) => {
             setOpen(null);
-            onBea(id);
+            if (id) onBea(id);
+            else onAssistant();
           }}
         />
       )}

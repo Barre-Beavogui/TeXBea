@@ -114,7 +114,7 @@ export default function ProjectLibrary({ projects, onOpen, onNew, onAction, onIm
         <Brand />
         <div className="library-tabs">
           <span className="active">Mes projets</span>
-          <span className="library-mode">{mode ? 'Espace personnel · V3' : 'Mon atelier · V3'}</span>
+          <span className="library-mode">{mode ? 'Espace personnel · dans ce navigateur' : 'Mon atelier'}</span>
         </div>
         <div className="account-chip">B</div>
       </header>
@@ -165,7 +165,7 @@ export default function ProjectLibrary({ projects, onOpen, onNew, onAction, onIm
               />
             </div>
             <div className="project-controls">
-              <label className="project-search">
+              <label className="library-search">
                 <Search size={18} />
                 <input
                   aria-label="Rechercher un projet"

@@ -30,7 +30,6 @@ import {
   Users,
   Code2,
   X,
-  Sparkles,
   Search,
   Upload,
   Pencil,
@@ -84,7 +83,7 @@ function Auth({ onAuth }) {
           B<span>·</span>
         </div>
         <h1>
-          TeXBea <em>V3</em>
+          TeX<em>Bea</em>
         </h1>
         <p>Un espace LaTeX moderne, prêt pour tes futures innovations.</p>
         <form onSubmit={go}>
@@ -188,6 +187,10 @@ function App() {
     setToast(s);
     setTimeout(() => setToast(''), 1800);
   };
+  // The whole interface follows the editor theme chosen in the settings.
+  useEffect(() => {
+    document.documentElement.dataset.theme = settings.theme === 'light' ? 'light' : 'dark';
+  }, [settings.theme]);
   function updateSettings(next) {
     setSettings(next);
     saveSettings(next);
@@ -786,37 +789,52 @@ function App() {
     warningCount = parsedLog.warnings.length;
   return (
     <div className={'app mobile-' + mobilePane + (filesOpen ? ' files-open' : '')}>
-      <header>
+      <header className="topbar">
         <Brand />
-        <button className="back-projects" onClick={returnToLibrary} disabled={busy}>
-          <Folder size={16} /> Mes projets
-        </button>
-        <select
-          value={project.id}
-          onChange={async (e) => {
-            if (dirty && !(await saveFile(true))) return;
-            openProject(await api('/projects/' + e.target.value));
-          }}
-        >
-          {projects
-            .filter((p) => !p.deleted)
-            .map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-        </select>
-        <button className="ghostText" onClick={newProject}>
-          <Plus size={15} /> Projet
-        </button>
+        <nav className="crumbs" aria-label="Projet">
+          <button className="back-projects" onClick={returnToLibrary} disabled={busy}>
+            <Folder size={15} /> Mes projets
+          </button>
+          <span className="crumb-sep">/</span>
+          <select
+            className="project-switch"
+            aria-label="Changer de projet"
+            value={project.id}
+            onChange={async (e) => {
+              if (dirty && !(await saveFile(true))) return;
+              openProject(await api('/projects/' + e.target.value));
+            }}
+          >
+            {projects
+              .filter((p) => !p.deleted)
+              .map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+          </select>
+          <button className="top-btn new-project-btn" onClick={newProject} title="Nouveau projet">
+            <Plus size={15} /> <span>Projet</span>
+          </button>
+        </nav>
         <div className="grow" />
-        <span className="saveState">{dirty ? '● non sauvegardé' : '✓ sauvegardé'}</span>
-        <button className="icon" aria-label="Réglages" title="Réglages" onClick={() => setSettingsOpen(true)}>
-          <Settings size={16} />
-        </button>
-        <button className="icon logout" aria-label="Se déconnecter" onClick={logout}>
-          <LogOut size={16} />
-        </button>
+        <span className={'saveState' + (dirty ? ' dirty' : '')}>
+          {dirty ? 'Modifications non sauvegardées' : 'Sauvegardé'}
+        </span>
+        <div className="top-actions">
+          <button className="top-btn" onClick={() => setShowHistory(true)} title="Versions et comparaison">
+            <History size={15} /> <span>Historique</span>
+          </button>
+          <button className="top-btn" onClick={() => setWordCountOpen(true)} title="Nombre de mots">
+            <CaseSensitive size={15} /> <span>Mots</span>
+          </button>
+          <button className="icon" aria-label="Réglages" title="Réglages" onClick={() => setSettingsOpen(true)}>
+            <Settings size={16} />
+          </button>
+          <button className="icon logout" aria-label="Se déconnecter" title="Se déconnecter" onClick={logout}>
+            <LogOut size={16} />
+          </button>
+        </div>
       </header>
       <nav className="workspace-nav" aria-label="Panneaux de travail">
         <button aria-expanded={filesOpen} onClick={() => setFilesOpen((v) => !v)}>
@@ -848,56 +866,68 @@ function App() {
         <button className="drawer-backdrop" aria-label="Fermer les fichiers" onClick={() => setFilesOpen(false)} />
       )}
       <main>
-        <aside>
+        <aside className="sidebar">
           <button className="drawer-close" aria-label="Fermer le panneau fichiers" onClick={() => setFilesOpen(false)}>
             <X size={18} />
           </button>
-          <div className="sideTitle">
-            <span>FICHIERS</span>
-            <button aria-label="Nouveau fichier" title="Nouveau fichier ou dossier" onClick={addFile}>
-              <Plus size={15} />
-            </button>
+          <div className="side-section side-files">
+            <div className="sideTitle">
+              <span>Fichiers</span>
+              <div className="side-actions">
+                <button aria-label="Nouveau fichier" title="Nouveau fichier ou dossier" onClick={addFile}>
+                  <Plus size={15} />
+                </button>
+                <button
+                  aria-label="Ajouter fichiers ou images"
+                  title="Ajouter fichiers / images"
+                  onClick={() => uploadRef.current.click()}
+                >
+                  <Upload size={15} />
+                </button>
+                <button aria-label="Exporter le projet ZIP" title="Exporter le projet ZIP" onClick={downloadZip}>
+                  <Download size={15} />
+                </button>
+              </div>
+              <input
+                ref={uploadRef}
+                hidden
+                type="file"
+                multiple
+                accept=".tex,.bib,.sty,.cls,.bst,.txt,.csv,.md,.png,.jpg,.jpeg,.pdf"
+                onChange={(e) => {
+                  uploadFiles([...e.target.files]);
+                  e.target.value = '';
+                }}
+              />
+            </div>
+            <div className="folder">
+              <Folder size={15} />
+              {project.name}
+            </div>
+            <div className="file-tree">{renderTree(fileTree([...Object.keys(files), ...Object.keys(assets)]))}</div>
           </div>
-          <div className="folder">
-            <Folder size={16} />
-            {project.name}
-          </div>
-          <div className="file-tree">{renderTree(fileTree([...Object.keys(files), ...Object.keys(assets)]))}</div>
-          <details className="document-outline" open>
-            <summary>Plan du document ({outline.length})</summary>
+          <details className="side-section document-outline" open>
+            <summary>
+              Plan du document <span className="count">{outline.length}</span>
+            </summary>
+            {!outline.length && <p className="side-empty">Ajoute des \section pour voir le plan.</p>}
             {outline.map((h, i) => (
               <button
                 key={i}
                 className={h.line <= cursor.line && (outline[i + 1]?.line ?? Infinity) > cursor.line ? 'on' : ''}
                 onClick={() => jumpTo(h)}
                 style={{
-                  paddingLeft: 6 + 12 * ['part', 'chapter', 'section', 'subsection', 'subsubsection'].indexOf(h.level),
+                  paddingLeft: 10 + 12 * ['part', 'chapter', 'section', 'subsection', 'subsubsection'].indexOf(h.level),
                 }}
               >
                 {h.title}
               </button>
             ))}
           </details>
-          <div className="sideTools">
-            <button onClick={() => uploadRef.current.click()}>
-              <Upload size={15} />
-              Ajouter fichiers / images
-            </button>
-            <input
-              ref={uploadRef}
-              hidden
-              type="file"
-              multiple
-              accept=".tex,.bib,.sty,.cls,.bst,.txt,.csv,.md,.png,.jpg,.jpeg,.pdf"
-              onChange={(e) => {
-                uploadFiles([...e.target.files]);
-                e.target.value = '';
-              }}
-            />
-            <button onClick={downloadZip}>
-              <Download size={15} />
-              Exporter le projet ZIP
-            </button>
+          <div className="side-section project-settings">
+            <div className="sideTitle">
+              <span>Compilation</span>
+            </div>
             <label className="main-file-label">
               Fichier principal
               <select aria-label="Fichier principal" value={project.main} onChange={(e) => changeMain(e.target.value)}>
@@ -926,12 +956,8 @@ function App() {
                 <small>Imposé par « % !TEX program » dans {project.main}</small>
               )}
             </label>
-            <button onClick={() => setShowHistory(true)}>
-              <History size={15} />
-              Historique ({project.history?.length || 0})
-            </button>
             <div className="collab">
-              <Users size={16} />
+              <Users size={15} />
               <div>
                 <b>{DEMO ? 'Essai individuel' : 'Temps réel prêt'}</b>
                 <small>{DEMO ? 'Sauvegarde dans ce navigateur' : 'Synchronisation multi-onglets via WebSocket'}</small>
@@ -944,48 +970,36 @@ function App() {
             <div className="tab">
               <Code2 size={14} />
               {active}
+              {dirty && <span className="tab-dot" aria-label="non sauvegardé" />}
             </div>
             <div className="editor-actions">
-              <button onClick={() => saveFile()}>
-                <Save size={14} /> Sauver
+              <button
+                className="icon"
+                aria-label="Rechercher"
+                title="Rechercher dans le fichier (Ctrl/Cmd + F)"
+                onClick={() => editorRef.current?.openSearch()}
+              >
+                <Search size={15} />
               </button>
-              {busy && DEMO ? (
-                <button className="compile stop" onClick={stopCompile} title={compilePhase}>
-                  <Square size={13} />
-                  Arrêter
-                </button>
-              ) : (
-                <button className="compile" onClick={() => compile()} disabled={busy} title="Ctrl/Cmd + Entrée">
-                  <Play size={15} />
-                  {busy ? compilePhase || 'Compilation…' : 'Compiler PDF'}
-                </button>
-              )}
+              <button
+                className="icon"
+                aria-label="Rechercher dans le projet"
+                title="Rechercher dans le projet (Ctrl/Cmd + Maj + F)"
+                onClick={() => setProjectSearch((v) => !v)}
+              >
+                <FileSearch size={15} />
+              </button>
+              <button onClick={showInPdf} title="Montrer dans le PDF la ligne du curseur">
+                <LocateFixed size={14} />
+                <span>Voir dans le PDF</span>
+              </button>
+              <button onClick={() => saveFile()} title="Ctrl/Cmd + S">
+                <Save size={14} />
+                <span>Sauver</span>
+              </button>
             </div>
           </div>
-          <div className="editor-v3-tools">
-            <button onClick={openAssistant}>
-              <Sparkles size={15} />
-              Bea · assistant
-            </button>
-            <button onClick={() => editorRef.current?.openSearch()} title="Ctrl/Cmd + F">
-              <Search size={15} />
-              Rechercher
-            </button>
-            <button onClick={() => setProjectSearch((v) => !v)} title="Ctrl/Cmd + Maj + F">
-              <FileSearch size={15} />
-              Dans le projet
-            </button>
-            <button onClick={showInPdf} title="Montrer dans le PDF la ligne du curseur">
-              <LocateFixed size={15} />
-              Voir dans le PDF
-            </button>
-            <button onClick={() => setWordCountOpen(true)}>
-              <CaseSensitive size={15} />
-              Mots
-            </button>
-            <span>V3</span>
-          </div>
-          <EditorToolbar editor={editorRef} onBea={startBea} />
+          <EditorToolbar editor={editorRef} onBea={startBea} onAssistant={openAssistant} />
           <input
             ref={photoRef}
             hidden
@@ -1050,9 +1064,24 @@ function App() {
           </div>
         </section>
         <section className="preview">
-          <div className="paneTop">
-            <b>APERÇU PDF</b>
-            <div>
+          <div className="paneTop preview-top">
+            <div className="compile-group">
+              {busy && DEMO ? (
+                <button className="compile stop" onClick={stopCompile} title={compilePhase}>
+                  <Square size={13} />
+                  Arrêter
+                </button>
+              ) : (
+                <button className="compile" onClick={() => compile()} disabled={busy} title="Ctrl/Cmd + Entrée">
+                  {busy ? <RefreshCw size={14} className="spin" /> : <Play size={14} />}
+                  {busy ? compilePhase || 'Compilation…' : 'Compiler PDF'}
+                </button>
+              )}
+              <span className="engine-chip" title="Compilateur (à changer dans la colonne Fichiers)">
+                {compilers.find((c) => c.id === effectiveCompiler({ ...project, files: currentFiles }))?.label}
+              </span>
+            </div>
+            <div className="preview-actions">
               {log && (
                 <button
                   className={'log-button' + (errorCount ? ' has-errors' : warningCount ? ' has-warnings' : '')}
@@ -1067,6 +1096,7 @@ function App() {
               )}
               {pdf && (
                 <a
+                  className="btn"
                   href={pdf}
                   download={
                     project.main
@@ -1075,10 +1105,11 @@ function App() {
                       .replace(/\.tex$/i, '') + '.pdf'
                   }
                 >
-                  Télécharger PDF
+                  <Download size={14} />
+                  PDF
                 </a>
               )}
-              <button onClick={downloadTex}>
+              <button onClick={downloadTex} title="Télécharger le fichier .tex">
                 <Download size={14} /> .tex
               </button>
             </div>

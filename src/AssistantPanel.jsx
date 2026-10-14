@@ -57,7 +57,6 @@ export default function AssistantPanel({ source, files, log, onClose, onJump, on
           <div>
             <Sparkles size={20} />
             <h2 id="assistant-title">Bea · assistant LaTeX</h2>
-            <span>V3</span>
           </div>
           <button
             aria-label="Fermer l’assistant"

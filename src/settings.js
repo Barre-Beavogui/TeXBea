@@ -2,7 +2,7 @@
 const KEY = 'texbea-settings';
 export const defaultSettings = {
   fontSize: 13,
-  theme: 'dark',
+  theme: 'light',
   keymap: 'default',
   lineWrapping: false,
   autocomplete: true,
