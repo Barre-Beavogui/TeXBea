@@ -1,0 +1,4 @@
+public/latex/
+package-lock.json
+dist/
+*.md

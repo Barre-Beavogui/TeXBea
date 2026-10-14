@@ -1,9 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {findSourceLocation} from '../src/source-navigation.js';
+import { findSourceLocation } from '../src/source-navigation.js';
 
 const files = {
-  'main.tex': '\\documentclass{article}\n\\begin{document}\n\\section{Résultats}\nLe \\textbf{rendement} est élevé.\n\\end{document}',
+  'main.tex':
+    '\\documentclass{article}\n\\begin{document}\n\\section{Résultats}\nLe \\textbf{rendement} est élevé.\n\\end{document}',
   'annexe.tex': 'Autre texte.\nLe rendement est élevé.',
   'refs.bib': 'Le rendement est élevé',
 };

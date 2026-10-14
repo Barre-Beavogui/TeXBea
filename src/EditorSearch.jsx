@@ -1,3 +1,77 @@
-import React,{useMemo,useState} from 'react';
-import {X} from 'lucide-react';
-export default function EditorSearch({source,onFind,onReplace,onClose}){const[term,setTerm]=useState(''),[replacement,setReplacement]=useState(''),[index,setIndex]=useState(0),[error,setError]=useState('');const matches=useMemo(()=>{const out=[];if(!term)return out;let start=0,p,line=1;const termLines=(term.match(/\n/g)||[]).length;while(out.length<5000&&(p=source.indexOf(term,start))!==-1){line+=(source.slice(start,p).match(/\n/g)||[]).length;out.push({start:p,end:p+term.length,line});line+=termLines;start=p+term.length;}return out;},[source,term]);return <div className="editor-search"><div><input autoFocus aria-label="Rechercher dans le code" placeholder="Rechercher…" value={term} onChange={e=>{setTerm(e.target.value);setIndex(0)}}/><span>{matches.length}{matches.length===5000?'+':''} résultat{matches.length>1?'s':''}</span><button disabled={!matches.length} onClick={()=>{onFind(matches[index%matches.length]);setIndex(index+1)}}>Suivant</button><button aria-label="Fermer la recherche" onClick={onClose}><X size={15}/></button></div><div><input aria-label="Remplacer par" placeholder="Remplacer par…" value={replacement} onChange={e=>setReplacement(e.target.value)}/><button disabled={!matches.length} onClick={async()=>{try{await onReplace(source.split(term).join(replacement));setError('')}catch(e){setError(e.message)}}}>Remplacer tout (avec sauvegarde)</button></div>{error&&<p role="alert">{error}</p>}</div>}
+import React, { useMemo, useState } from 'react';
+import { X } from 'lucide-react';
+export default function EditorSearch({ source, onFind, onReplace, onClose }) {
+  const [term, setTerm] = useState(''),
+    [replacement, setReplacement] = useState(''),
+    [index, setIndex] = useState(0),
+    [error, setError] = useState('');
+  const matches = useMemo(() => {
+    const out = [];
+    if (!term) return out;
+    let start = 0,
+      p,
+      line = 1;
+    const termLines = (term.match(/\n/g) || []).length;
+    while (out.length < 5000 && (p = source.indexOf(term, start)) !== -1) {
+      line += (source.slice(start, p).match(/\n/g) || []).length;
+      out.push({ start: p, end: p + term.length, line });
+      line += termLines;
+      start = p + term.length;
+    }
+    return out;
+  }, [source, term]);
+  return (
+    <div className="editor-search">
+      <div>
+        <input
+          autoFocus
+          aria-label="Rechercher dans le code"
+          placeholder="Rechercher…"
+          value={term}
+          onChange={(e) => {
+            setTerm(e.target.value);
+            setIndex(0);
+          }}
+        />
+        <span>
+          {matches.length}
+          {matches.length === 5000 ? '+' : ''} résultat{matches.length > 1 ? 's' : ''}
+        </span>
+        <button
+          disabled={!matches.length}
+          onClick={() => {
+            onFind(matches[index % matches.length]);
+            setIndex(index + 1);
+          }}
+        >
+          Suivant
+        </button>
+        <button aria-label="Fermer la recherche" onClick={onClose}>
+          <X size={15} />
+        </button>
+      </div>
+      <div>
+        <input
+          aria-label="Remplacer par"
+          placeholder="Remplacer par…"
+          value={replacement}
+          onChange={(e) => setReplacement(e.target.value)}
+        />
+        <button
+          disabled={!matches.length}
+          onClick={async () => {
+            try {
+              await onReplace(source.split(term).join(replacement));
+              setError('');
+            } catch (e) {
+              setError(e.message);
+            }
+          }}
+        >
+          Remplacer tout (avec sauvegarde)
+        </button>
+      </div>
+      {error && <p role="alert">{error}</p>}
+    </div>
+  );
+}
