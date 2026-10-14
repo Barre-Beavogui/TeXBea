@@ -56,6 +56,11 @@ async function command(cmd, extra = {}) {
   );
   if (result.result !== 'ok') throw new Error('Impossible de préparer les fichiers LaTeX.');
 }
+// Stops a running compilation (Overleaf's "Stop compilation"); the engine reloads on the next compile.
+export function cancelCompile() {
+  pending?.reject(new Error('Compilation arrêtée.'));
+  stop();
+}
 export async function compileInBrowser(project, onProgress = () => {}) {
   if (busy) throw new Error('Une compilation est déjà en cours.');
   busy = true;

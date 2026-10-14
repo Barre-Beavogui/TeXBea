@@ -1,4 +1,4 @@
-import { templates, safePath, validateProject } from './project-tools.js';
+import { templates, safePath, validateProject, renameFile } from './project-tools.js';
 const key = 'texnova-lab-projects';
 const uid = () => crypto.randomUUID();
 function make(input) {
@@ -69,6 +69,13 @@ export async function demoApi(path, opt = {}) {
         if (n === p.main) fail('Impossible de supprimer le fichier principal');
         delete p.files[n];
         delete p.assets[n];
+        result = p;
+      } else if (method === 'PATCH') {
+        try {
+          Object.assign(p, renameFile(p, n, String(body.newName || '')));
+        } catch (e) {
+          fail(e.message, /existe/.test(e.message) ? 409 : 400);
+        }
         result = p;
       } else if (method === 'POST') {
         if (n in p.files || n in p.assets) fail('Ce fichier existe déjà', 409);

@@ -2,14 +2,14 @@ import React, { useMemo, useState } from 'react';
 import { Sparkles, X, CheckCircle2, Download, Square } from 'lucide-react';
 import { analyzeLatex } from './latex-analysis.js';
 import { aiModels, activateAI, cancelActivation, aiReady, askAI, stopGeneration } from './local-ai.js';
-export default function AssistantPanel({ source, files, log, onClose, onJump, onInsert }) {
-  const [tab, setTab] = useState('analysis'),
+export default function AssistantPanel({ source, files, log, onClose, onJump, onInsert, initialPrompt = '' }) {
+  const [tab, setTab] = useState(initialPrompt ? 'ai' : 'analysis'),
     [model, setModel] = useState(aiModels[0].id),
     [ready, setReady] = useState(aiReady(aiModels[0].id)),
     [busy, setBusy] = useState(false),
     [loading, setLoading] = useState(false),
     [progress, setProgress] = useState(0),
-    [prompt, setPrompt] = useState(''),
+    [prompt, setPrompt] = useState(initialPrompt),
     [answer, setAnswer] = useState(''),
     [error, setError] = useState(''),
     [placement, setPlacement] = useState('body');

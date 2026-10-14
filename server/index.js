@@ -1,4 +1,4 @@
-import { safePath, validateProject, templates } from '../src/project-tools.js';
+import { safePath, validateProject, templates, renameFile } from '../src/project-tools.js';
 import express from 'express';
 import crypto from 'crypto';
 import fs from 'fs';
@@ -216,6 +216,20 @@ app.post('/api/projects/:pid/files', auth, async (req, res) => {
   } catch (e) {
     res.status(400).json({ error: e.message });
   }
+});
+app.patch('/api/projects/:pid/files/:name', auth, async (req, res) => {
+  const name = decodeURIComponent(req.params.name);
+  const d = await db();
+  const p = d.projects.find((x) => x.id === req.params.pid && x.ownerId === req.userId);
+  if (!p) return res.sendStatus(404);
+  try {
+    Object.assign(p, renameFile(p, name, String(req.body?.newName || '')));
+  } catch (e) {
+    return res.status(/existe/.test(e.message) ? 409 : 400).json({ error: e.message });
+  }
+  p.updatedAt = new Date().toISOString();
+  await save(d);
+  res.json(publicProject(p));
 });
 app.delete('/api/projects/:pid/files/:name', auth, async (req, res) => {
   const name = decodeURIComponent(req.params.name);

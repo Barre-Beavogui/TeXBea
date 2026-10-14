@@ -83,3 +83,18 @@ test('données locales illisibles : message explicite sans écrasement', async (
   await assert.rejects(call('/projects'), /illisibles/);
   assert.equal(store.get('texnova-lab-projects'), '{cassé');
 });
+
+test('renommer ou déplacer un fichier, y compris le fichier principal', async () => {
+  const [{ id }] = await call('/projects');
+  await call(`/projects/${id}/files`, 'POST', { name: 'img.png', content: 'AAAA', binary: true });
+  let p = await call(`/projects/${id}/files/main.tex`, 'PATCH', { newName: 'these/main.tex' });
+  assert.equal(p.main, 'these/main.tex');
+  p = await call(`/projects/${id}/files/img.png`, 'PATCH', { newName: 'figures/img.png' });
+  assert.deepEqual(Object.keys(p.assets), ['figures/img.png']);
+  await assert.rejects(call(`/projects/${id}/files/these%2Fmain.tex`, 'PATCH', { newName: 'main.txt' }), /\.tex/);
+  await assert.rejects(call(`/projects/${id}/files/figures%2Fimg.png`, 'PATCH', { newName: '../x.png' }), /invalide/);
+  await assert.rejects(
+    call(`/projects/${id}/files/figures%2Fimg.png`, 'PATCH', { newName: 'these/main.tex' }),
+    (e) => e.status === 409,
+  );
+});

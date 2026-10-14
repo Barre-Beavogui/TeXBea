@@ -1,11 +1,14 @@
-import { exportProject, importProject, downloadBlob } from './project-tools.js';
+import { exportProject, importProject } from './project-tools.js';
 import { documentOutline } from './latex-analysis.js';
-import EditorSearch from './EditorSearch.jsx';
-import LatexHighlight from './LatexHighlight.jsx';
 import ProjectLibrary, { Brand, ProjectDialog } from './ProjectLibrary.jsx';
-import { findSourceLocation } from './source-navigation.js';
-import { compileInBrowser } from './browser-compiler.js';
+import { findSourceLocation, searchablePhrases } from './source-navigation.js';
+import { compileInBrowser, cancelCompile } from './browser-compiler.js';
+import { parseLatexLog } from './log-parser.js';
+import { loadSettings, saveSettings } from './settings.js';
 import { demoApi } from './demo-api.js';
+import CodeEditor from './CodeEditor.jsx';
+import EditorToolbar from './EditorToolbar.jsx';
+import { LogPanel, ProjectSearch, HistoryPanel, WordCountDialog, SettingsDialog } from './WorkspacePanels.jsx';
 const DEMO = import.meta.env.VITE_DEMO === 'true';
 import React, { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -20,7 +23,6 @@ import {
   Trash2,
   Download,
   Check,
-  AlertTriangle,
   RefreshCw,
   Users,
   Code2,
@@ -28,7 +30,14 @@ import {
   Sparkles,
   Search,
   Upload,
-  Copy,
+  Pencil,
+  Settings,
+  Square,
+  FileSearch,
+  LocateFixed,
+  CaseSensitive,
+  ScrollText,
+  Image as ImageIcon,
 } from 'lucide-react';
 import './style.css';
 const AssistantPanel = lazy(() => import('./AssistantPanel.jsx'));
@@ -104,6 +113,26 @@ function Auth({ onAuth }) {
     </div>
   );
 }
+// Offset range of a 1-based line, to place the cursor from a log entry or the outline.
+function lineRange(text, line) {
+  const lines = text.split('\n');
+  const n = Math.min(Math.max(1, line), lines.length);
+  const start = lines.slice(0, n - 1).join('\n').length + (n > 1 ? 1 : 0);
+  return { line: n, start, end: start + lines[n - 1].length };
+}
+
+// Groups "chap/intro.tex" style paths into folders for the file tree.
+function fileTree(names) {
+  const root = { folders: {}, files: [] };
+  for (const name of names.sort((a, b) => a.localeCompare(b))) {
+    const parts = name.split('/');
+    let node = root;
+    for (const part of parts.slice(0, -1)) node = node.folders[part] ||= { folders: {}, files: [] };
+    node.files.push(name);
+  }
+  return root;
+}
+
 function App() {
   const [user, setUser] = useState(null),
     [projects, setProjects] = useState([]),
@@ -123,12 +152,19 @@ function App() {
     [library, setLibrary] = useState(true),
     [createOpen, setCreateOpen] = useState(false),
     [assistant, setAssistant] = useState(false),
-    [searchOpen, setSearchOpen] = useState(false),
+    [assistantPrompt, setAssistantPrompt] = useState(''),
+    [projectSearch, setProjectSearch] = useState(false),
+    [logOpen, setLogOpen] = useState(false),
+    [wordCountOpen, setWordCountOpen] = useState(false),
+    [settingsOpen, setSettingsOpen] = useState(false),
+    [settings, setSettings] = useState(loadSettings),
+    [cursor, setCursor] = useState({ line: 1, column: 1 }),
+    [pdfTarget, setPdfTarget] = useState(null),
     [assetPreview, setAssetPreview] = useState(null),
     timer = useRef(),
+    autoTimer = useRef(),
+    compiling = useRef(false),
     editorRef = useRef(),
-    gutterRef = useRef(),
-    highlightRef = useRef(),
     uploadRef = useRef(),
     assistantSelection = useRef();
   useEffect(
@@ -137,33 +173,19 @@ function App() {
     },
     [pdf],
   );
-  useEffect(() => {
-    if (!jump || !editorRef.current) return;
-    const el = editorRef.current;
-    requestAnimationFrame(() => {
-      el.focus({ preventScroll: true });
-      el.setSelectionRange(jump.start, jump.end);
-      const lineHeight = parseFloat(getComputedStyle(el).lineHeight);
-      el.scrollTop = Math.max(0, (jump.line - 1) * lineHeight - el.clientHeight / 2 + 16);
-      el.scrollLeft = 0;
-      syncEditorScroll(el);
-    });
-  }, [jump, active, code, mobilePane]);
-  function syncEditorScroll(el) {
-    if (gutterRef.current) gutterRef.current.scrollTop = el.scrollTop;
-    if (highlightRef.current) {
-      highlightRef.current.scrollTop = el.scrollTop;
-      highlightRef.current.scrollLeft = el.scrollLeft;
-    }
-  }
-  useEffect(() => {
-    if (editorRef.current) syncEditorScroll(editorRef.current);
-  }, [code, active, library, mobilePane]);
   const files = project?.files || {};
+  const currentFiles = useMemo(() => ({ ...files, [active]: code }), [files, active, code]);
+  const parsedLog = useMemo(() => parseLatexLog(log, files, project?.main), [log, files, project?.main]);
+  const activeDiagnostics = useMemo(() => parsedLog.all.filter((e) => e.file === active), [parsedLog, active]);
+  const outline = useMemo(() => documentOutline(code), [code]);
   const notify = (s) => {
     setToast(s);
     setTimeout(() => setToast(''), 1800);
   };
+  function updateSettings(next) {
+    setSettings(next);
+    saveSettings(next);
+  }
   async function loadProjects(preferred) {
     try {
       const ps = await api('/projects');
@@ -181,8 +203,9 @@ function App() {
     }
   }
   function openProject(p) {
-    setSearchOpen(false);
+    setProjectSearch(false);
     setAssistant(false);
+    setLogOpen(false);
     setJump(null);
     setFilesOpen(false);
     setMobilePane('code');
@@ -225,6 +248,46 @@ function App() {
     timer.current = setTimeout(() => saveFile(true), 900);
     return () => clearTimeout(timer.current);
   }, [code]);
+  // Closing or hiding the tab within the autosave delay must not lose the last keystrokes.
+  const flush = useRef();
+  flush.current = () => dirty && project && saveFile(true);
+  useEffect(() => {
+    const save = () => flush.current();
+    const hidden = () => document.visibilityState === 'hidden' && flush.current();
+    window.addEventListener('pagehide', save);
+    document.addEventListener('visibilitychange', hidden);
+    return () => {
+      window.removeEventListener('pagehide', save);
+      document.removeEventListener('visibilitychange', hidden);
+    };
+  }, []);
+  // Auto-compile after a pause in typing, like Overleaf's "Auto Compile".
+  useEffect(() => {
+    if (!settings.autoCompile || !project || library) return;
+    clearTimeout(autoTimer.current);
+    autoTimer.current = setTimeout(() => {
+      compile({ auto: true });
+    }, 2500);
+    return () => clearTimeout(autoTimer.current);
+  }, [code, settings.autoCompile]);
+  // Ctrl/Cmd+S and Ctrl/Cmd+Enter also work when the focus is outside the editor.
+  useEffect(() => {
+    function keys(e) {
+      if (e.defaultPrevented || !(e.ctrlKey || e.metaKey) || library || !project) return;
+      if (e.key === 's') {
+        e.preventDefault();
+        saveFile();
+      } else if (e.key === 'Enter' && !busy) {
+        e.preventDefault();
+        compile();
+      } else if (e.shiftKey && e.key.toLowerCase() === 'f') {
+        e.preventDefault();
+        setProjectSearch(true);
+      }
+    }
+    window.addEventListener('keydown', keys);
+    return () => window.removeEventListener('keydown', keys);
+  });
   async function saveFile(silent = false) {
     if (!project) return true;
     try {
@@ -241,31 +304,41 @@ function App() {
       return false;
     }
   }
-  async function compile() {
+  async function compile({ auto = false } = {}) {
+    if (compiling.current) return;
+    compiling.current = true;
     setBusy(true);
-    setLog('');
-    setPdf('');
     try {
       if (dirty && !(await saveFile(true))) throw new Error('Sauvegarde impossible. Compilation annulée.');
-      const current = { ...project, files: { ...project.files, [active]: code } };
+      const current = { ...project, files: currentFiles };
       const j = DEMO
         ? await compileInBrowser(current, setCompilePhase)
         : await api(`/projects/${project.id}/compile`, { method: 'POST' });
       setPdf(j.url + (DEMO ? '' : '?token=' + encodeURIComponent(localStorage.tn_token)));
       setLog(j.log || '');
-      setMobilePane('pdf');
-      notify('PDF compilé');
+      if (!auto) {
+        setMobilePane('pdf');
+        notify('PDF compilé');
+      }
     } catch (e) {
-      setLog(e.data?.log || e.message);
-      notify(e.message);
+      const text = e.data?.log || e.message;
+      setLog(text);
+      // Like Overleaf, a failed compilation opens the log on its first error.
+      if (parseLatexLog(text, currentFiles, project.main).errors.length) setLogOpen(true);
+      if (!auto) notify(e.message);
     } finally {
+      compiling.current = false;
       setBusy(false);
       setCompilePhase('');
     }
   }
+  function stopCompile() {
+    cancelCompile();
+    notify('Compilation arrêtée');
+  }
   async function addFile() {
     if (dirty && !(await saveFile(true))) return;
-    const n = prompt('Nom du fichier (ex: chapitre.tex)');
+    const n = prompt('Nom du fichier (ex : chapitre.tex ou chapitres/intro.tex pour créer un dossier)');
     if (!n) return;
     try {
       const p = await api(`/projects/${project.id}/files`, {
@@ -282,14 +355,32 @@ function App() {
       notify(e.message);
     }
   }
+  async function renameFile(n) {
+    if (dirty && !(await saveFile(true))) return;
+    const next = prompt('Nouveau nom (les dossiers sont séparés par /)', n)?.trim();
+    if (!next || next === n) return;
+    try {
+      const p = await api(`/projects/${project.id}/files/${encodeURIComponent(n)}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ newName: next }),
+      });
+      setProject(p);
+      if (active === n) setActive(next);
+      notify('Fichier renommé. Pense à mettre à jour les \\input et \\includegraphics.');
+    } catch (e) {
+      notify(e.message);
+    }
+  }
   async function delFile(n) {
     if (dirty && !(await saveFile(true))) return;
     if (!confirm(`Supprimer ${n} ?`)) return;
     try {
       const p = await api(`/projects/${project.id}/files/${encodeURIComponent(n)}`, { method: 'DELETE' });
       setProject(p);
-      setActive(p.main);
-      setCode(p.files[p.main] || '');
+      if (n === active) {
+        setActive(p.main);
+        setCode(p.files[p.main] || '');
+      }
     } catch (e) {
       notify(e.message);
     }
@@ -304,11 +395,22 @@ function App() {
     notify('Version créée');
   }
   async function restore(sid) {
-    if (!confirm('Restaurer cette version ?')) return;
-    const p = await api(`/projects/${project.id}/restore/${sid}`, { method: 'POST' });
-    openProject(p);
-    setShowHistory(false);
-    notify('Version restaurée');
+    if (!confirm('Restaurer cette version ? La version actuelle sera conservée dans l’historique.')) return;
+    try {
+      const history = project.history || [];
+      // Keep the current state, unless saving it would push the chosen (oldest) version out of the 20 kept.
+      if (!(history.length >= 20 && history[0].id === sid))
+        await api(`/projects/${project.id}/snapshot`, {
+          method: 'POST',
+          body: JSON.stringify({ label: 'Avant restauration' }),
+        });
+      const p = await api(`/projects/${project.id}/restore/${sid}`, { method: 'POST' });
+      openProject(p);
+      setShowHistory(false);
+      notify('Version restaurée');
+    } catch (e) {
+      notify(e.message);
+    }
   }
   async function newProject() {
     if (dirty && !(await saveFile(true))) return;
@@ -402,10 +504,30 @@ function App() {
       notify(e.message);
     }
   }
-  function jumpTo(location) {
+  // Opens a file (saving the current one first) and selects a range in it.
+  async function openAt(file, location) {
+    if (file !== active) {
+      if (dirty && !(await saveFile(true))) return;
+      setActive(file);
+      setCode(currentFiles[file] ?? '');
+      setDirty(false);
+    }
     setMobilePane('code');
     setFilesOpen(false);
     setJump({ ...location, id: Date.now() });
+  }
+  function jumpTo(location) {
+    openAt(active, location);
+  }
+  function jumpToLog(entry) {
+    if (!entry.file || !entry.line || currentFiles[entry.file] === undefined) return;
+    openAt(entry.file, lineRange(currentFiles[entry.file], entry.line));
+  }
+  function askBeaAbout(entry) {
+    setAssistantPrompt(
+      `Explique cette erreur LaTeX et propose une correction${entry.line ? ` (ligne ${entry.line} de ${entry.file})` : ''} : ${entry.message}`,
+    );
+    openAssistant();
   }
   async function replaceWithBackup(next, label = 'Avant remplacement') {
     if (!(await saveFile(true))) throw Error('Sauvegarde impossible');
@@ -420,8 +542,8 @@ function App() {
     notify('Modification appliquée, version précédente conservée');
   }
   function openAssistant() {
-    const el = editorRef.current;
-    assistantSelection.current = { start: el?.selectionStart || 0, end: el?.selectionEnd || 0, source: code };
+    const selection = editorRef.current?.selection() || { start: 0, end: 0 };
+    assistantSelection.current = { ...selection, source: code };
     setAssistant(true);
   }
   async function insertSuggestion(fragment, mode = 'insert') {
@@ -446,12 +568,17 @@ function App() {
   async function downloadZip() {
     try {
       if (dirty && !(await saveFile(true))) return;
-      await exportProject({ ...project, files: { ...files, [active]: code } });
+      await exportProject({ ...project, files: currentFiles });
     } catch (e) {
       notify(e.message);
     }
   }
   async function choose(n) {
+    if (n === active) {
+      setFilesOpen(false);
+      setMobilePane('code');
+      return;
+    }
     if (dirty && !(await saveFile(true))) return;
     setActive(n);
     setCode(files[n] || '');
@@ -461,26 +588,33 @@ function App() {
     setMobilePane('code');
   }
   async function navigateSource(fragment, occurrence) {
-    const currentFiles = { ...files, [active]: code };
     const location = findSourceLocation(currentFiles, fragment, occurrence);
     if (!location) {
       notify('Texte généré ou formule : ligne source introuvable');
       return;
     }
-    if (dirty && !(await saveFile(true))) return;
-    setActive(location.file);
-    setCode(currentFiles[location.file]);
-    setDirty(false);
-    setMobilePane('code');
-    setJump({ ...location, id: Date.now() });
+    await openAt(location.file, location);
     notify(`${location.file} · ligne ${location.line}`);
+  }
+  function showInPdf() {
+    if (!pdf) {
+      notify('Compile d’abord le document');
+      return;
+    }
+    const phrases = searchablePhrases(editorRef.current?.cursorLine() || '');
+    if (!phrases.length) {
+      notify('Place le curseur sur une ligne de texte');
+      return;
+    }
+    setPdfTarget({ phrases, id: Date.now() });
+    setMobilePane('pdf');
   }
   function downloadTex() {
     const b = new Blob([code]);
     const u = URL.createObjectURL(b);
     const a = document.createElement('a');
     a.href = u;
-    a.download = active;
+    a.download = active.split('/').pop();
     a.click();
     URL.revokeObjectURL(u);
   }
@@ -527,6 +661,50 @@ function App() {
         <RefreshCw className="spin" /> Chargement…
       </div>
     );
+  const assets = project.assets || {};
+  const renderTree = (node, depth = 0) => (
+    <>
+      {Object.entries(node.folders).map(([folder, child]) => (
+        <details key={folder} open className="tree-folder" style={{ '--depth': depth }}>
+          <summary>
+            <Folder size={14} />
+            {folder}
+          </summary>
+          {renderTree(child, depth + 1)}
+        </details>
+      ))}
+      {node.files.map((n) => {
+        const isAsset = n in assets;
+        const label = n.split('/').pop();
+        return (
+          <div
+            className={'file ' + (n === active ? 'on' : '') + (isAsset ? ' asset-file' : '')}
+            key={n}
+            style={{ '--depth': depth }}
+          >
+            <button
+              className="file-open"
+              onClick={() => (isAsset ? setAssetPreview({ name: n, content: assets[n] }) : choose(n))}
+            >
+              {isAsset ? <ImageIcon size={14} /> : <FileText size={14} />}
+              <span>{label}</span>
+              {n === project.main && <em className="main-badge">principal</em>}
+            </button>
+            <button aria-label={'Renommer ' + n} title="Renommer ou déplacer" onClick={() => renameFile(n)}>
+              <Pencil size={12} />
+            </button>
+            {n !== project.main && (
+              <button aria-label={'Supprimer ' + n} title="Supprimer" onClick={() => delFile(n)}>
+                <Trash2 size={12} />
+              </button>
+            )}
+          </div>
+        );
+      })}
+    </>
+  );
+  const errorCount = parsedLog.errors.length,
+    warningCount = parsedLog.warnings.length;
   return (
     <div className={'app mobile-' + mobilePane + (filesOpen ? ' files-open' : '')}>
       <header>
@@ -554,6 +732,9 @@ function App() {
         </button>
         <div className="grow" />
         <span className="saveState">{dirty ? '● non sauvegardé' : '✓ sauvegardé'}</span>
+        <button className="icon" aria-label="Réglages" title="Réglages" onClick={() => setSettingsOpen(true)}>
+          <Settings size={16} />
+        </button>
         <button className="icon logout" aria-label="Se déconnecter" onClick={logout}>
           <LogOut size={16} />
         </button>
@@ -594,7 +775,7 @@ function App() {
           </button>
           <div className="sideTitle">
             <span>FICHIERS</span>
-            <button onClick={addFile}>
+            <button aria-label="Nouveau fichier" title="Nouveau fichier ou dossier" onClick={addFile}>
               <Plus size={15} />
             </button>
           </div>
@@ -602,37 +783,18 @@ function App() {
             <Folder size={16} />
             {project.name}
           </div>
-          {Object.keys(files).map((n) => (
-            <div className={'file ' + (n === active ? 'on' : '')} key={n} onClick={() => choose(n)}>
-              <FileText size={14} />
-              <span>{n}</span>
-              {n !== project.main && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    delFile(n);
-                  }}
-                >
-                  <Trash2 size={12} />
-                </button>
-              )}
-            </div>
-          ))}
-          {Object.entries(project.assets || {}).map(([n, content]) => (
-            <div className="file asset-file" key={n}>
-              <button onClick={() => setAssetPreview({ name: n, content })}>
-                <FileText size={14} />
-                {n}
-              </button>
-              <button aria-label={'Supprimer ' + n} onClick={() => delFile(n)}>
-                <Trash2 size={12} />
-              </button>
-            </div>
-          ))}
-          <details className="document-outline">
-            <summary>Plan du document ({documentOutline(code).length})</summary>
-            {documentOutline(code).map((h, i) => (
-              <button key={i} onClick={() => jumpTo(h)} style={{ paddingLeft: h.level.includes('sub') ? 18 : 6 }}>
+          <div className="file-tree">{renderTree(fileTree([...Object.keys(files), ...Object.keys(assets)]))}</div>
+          <details className="document-outline" open>
+            <summary>Plan du document ({outline.length})</summary>
+            {outline.map((h, i) => (
+              <button
+                key={i}
+                className={h.line <= cursor.line && (outline[i + 1]?.line ?? Infinity) > cursor.line ? 'on' : ''}
+                onClick={() => jumpTo(h)}
+                style={{
+                  paddingLeft: 6 + 12 * ['part', 'chapter', 'section', 'subsection', 'subsubsection'].indexOf(h.level),
+                }}
+              >
                 {h.title}
               </button>
             ))}
@@ -647,7 +809,7 @@ function App() {
               hidden
               type="file"
               multiple
-              accept=".tex,.bib,.sty,.cls,.txt,.csv,.png,.jpg,.jpeg,.pdf"
+              accept=".tex,.bib,.sty,.cls,.bst,.txt,.csv,.md,.png,.jpg,.jpeg,.pdf"
               onChange={(e) => {
                 uploadFiles([...e.target.files]);
                 e.target.value = '';
@@ -667,10 +829,6 @@ function App() {
                   ))}
               </select>
             </label>
-            <button onClick={snapshot}>
-              <History size={15} />
-              Créer une version
-            </button>
             <button onClick={() => setShowHistory(true)}>
               <History size={15} />
               Historique ({project.history?.length || 0})
@@ -694,10 +852,17 @@ function App() {
               <button onClick={() => saveFile()}>
                 <Save size={14} /> Sauver
               </button>
-              <button className="compile" onClick={compile} disabled={busy}>
-                <Play size={15} />
-                {busy ? compilePhase || 'Compilation…' : 'Compiler PDF'}
-              </button>
+              {busy && DEMO ? (
+                <button className="compile stop" onClick={stopCompile} title={compilePhase}>
+                  <Square size={13} />
+                  Arrêter
+                </button>
+              ) : (
+                <button className="compile" onClick={() => compile()} disabled={busy} title="Ctrl/Cmd + Entrée">
+                  <Play size={15} />
+                  {busy ? compilePhase || 'Compilation…' : 'Compiler PDF'}
+                </button>
+              )}
             </div>
           </div>
           <div className="editor-v3-tools">
@@ -705,60 +870,59 @@ function App() {
               <Sparkles size={15} />
               Bea · assistant
             </button>
-            <button onClick={() => setSearchOpen((v) => !v)}>
+            <button onClick={() => editorRef.current?.openSearch()} title="Ctrl/Cmd + F">
               <Search size={15} />
               Rechercher
             </button>
+            <button onClick={() => setProjectSearch((v) => !v)} title="Ctrl/Cmd + Maj + F">
+              <FileSearch size={15} />
+              Dans le projet
+            </button>
+            <button onClick={showInPdf} title="Montrer dans le PDF la ligne du curseur">
+              <LocateFixed size={15} />
+              Voir dans le PDF
+            </button>
+            <button onClick={() => setWordCountOpen(true)}>
+              <CaseSensitive size={15} />
+              Mots
+            </button>
             <span>V3</span>
           </div>
-          {searchOpen && (
-            <EditorSearch
-              source={code}
-              onFind={jumpTo}
-              onReplace={replaceWithBackup}
-              onClose={() => setSearchOpen(false)}
+          <EditorToolbar editor={editorRef} />
+          {projectSearch && (
+            <ProjectSearch
+              files={currentFiles}
+              onJump={(r) => openAt(r.file, r)}
+              onClose={() => setProjectSearch(false)}
             />
           )}
           <div className="codeWrap">
-            <div className="lines" ref={gutterRef}>
-              {code.split('\n').map((_, i) => (
-                <div className={jump?.line === i + 1 ? 'source-highlight' : ''} key={i}>
-                  {i + 1}
-                </div>
-              ))}
-            </div>
-            <LatexHighlight ref={highlightRef} code={code} />
-            <textarea
+            <CodeEditor
               ref={editorRef}
-              aria-label="Code LaTeX"
-              wrap="off"
-              onScroll={(e) => syncEditorScroll(e.currentTarget)}
-              onKeyDown={(e) => {
-                if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-                  e.preventDefault();
-                  saveFile();
-                }
-                if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
-                  e.preventDefault();
-                  setSearchOpen(true);
-                }
-                if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && !busy) {
-                  e.preventDefault();
-                  compile();
-                }
-              }}
-              spellCheck={false}
               value={code}
-              onChange={(e) => {
-                setCode(e.target.value);
+              docKey={project.id + ':' + active}
+              settings={settings}
+              diagnostics={activeDiagnostics}
+              jump={jump}
+              getProject={() => ({ files: currentFiles, assets })}
+              onCursor={setCursor}
+              onChange={(next) => {
+                if (next === code) return;
+                setCode(next);
                 setDirty(true);
-                setJump(null);
+              }}
+              actions={{
+                save: () => saveFile(),
+                compile: () => compile(),
+                projectSearch: () => setProjectSearch(true),
               }}
             />
           </div>
           <div className="status">
+            <span>
+              Ligne {cursor.line}, col. {cursor.column}
+            </span>
             <span>{code.split('\n').length} lignes</span>
-            <span>{jump ? 'Ligne ' + jump.line : 'UTF-8'}</span>
             <span>{dirty ? 'Sauvegarde…' : 'Sauvegardé'}</span>
           </div>
         </section>
@@ -766,8 +930,28 @@ function App() {
           <div className="paneTop">
             <b>APERÇU PDF</b>
             <div>
+              {log && (
+                <button
+                  className={'log-button' + (errorCount ? ' has-errors' : warningCount ? ' has-warnings' : '')}
+                  onClick={() => setLogOpen((v) => !v)}
+                  aria-expanded={logOpen}
+                >
+                  <ScrollText size={14} />
+                  Journal
+                  {errorCount > 0 && <span className="badge error">{errorCount}</span>}
+                  {warningCount > 0 && <span className="badge warning">{warningCount}</span>}
+                </button>
+              )}
               {pdf && (
-                <a href={pdf} download={project.main.replace(/\.tex$/i, '') + '.pdf'}>
+                <a
+                  href={pdf}
+                  download={
+                    project.main
+                      .split('/')
+                      .pop()
+                      .replace(/\.tex$/i, '') + '.pdf'
+                  }
+                >
                   Télécharger PDF
                 </a>
               )}
@@ -777,14 +961,27 @@ function App() {
             </div>
           </div>
           <div className="paperArea">
-            {pdf ? (
+            {logOpen && log ? (
+              <LogPanel
+                parsed={parsedLog}
+                raw={log}
+                onJump={jumpToLog}
+                onAskBea={askBeaAbout}
+                onClose={() => setLogOpen(false)}
+              />
+            ) : pdf ? (
               <Suspense fallback={<p className="pdf-loading">Chargement du lecteur PDF…</p>}>
-                <PdfViewer url={pdf} onSource={navigateSource} />
+                <PdfViewer
+                  url={pdf}
+                  onSource={navigateSource}
+                  target={pdfTarget}
+                  onTargetMissing={() => notify('Passage introuvable dans le PDF (formule ou texte généré ?)')}
+                />
               </Suspense>
             ) : (
               <div className="emptyPdf">
                 <div className="docIcon">PDF</div>
-                <h2>Prêt à compiler</h2>
+                <h2>{busy ? compilePhase || 'Compilation…' : 'Prêt à compiler'}</h2>
                 <p>
                   {DEMO
                     ? 'Clique sur Compiler PDF. Le moteur LaTeX s’exécute dans ton navigateur, avec prise en charge de TikZ.'
@@ -798,18 +995,12 @@ function App() {
               </div>
             )}
           </div>
-          {log && (
-            <details className="log">
-              <summary>Journal de compilation</summary>
-              <pre>{log}</pre>
-            </details>
-          )}
           <div className="pdfStatus">
             <span>
-              <span className={pdf ? 'green' : 'amber'}></span>
-              {pdf ? 'PDF généré' : 'En attente'}
+              <span className={pdf ? 'green' : errorCount ? 'red' : 'amber'}></span>
+              {pdf ? 'PDF généré' : errorCount ? 'Erreurs de compilation' : 'En attente'}
             </span>
-            <span>TeXBea Engine</span>
+            <span>{settings.autoCompile ? 'Compilation auto' : 'TeXBea Engine'}</span>
           </div>
         </section>
       </main>
@@ -825,15 +1016,12 @@ function App() {
             source={code}
             files={files}
             log={log}
-            onClose={() => setAssistant(false)}
-            onJump={(line) => {
-              const start =
-                code
-                  .split('\n')
-                  .slice(0, line - 1)
-                  .join('\n').length + (line > 1 ? 1 : 0);
-              jumpTo({ line, start, end: start + code.split('\n')[line - 1].length });
+            initialPrompt={assistantPrompt}
+            onClose={() => {
+              setAssistant(false);
+              setAssistantPrompt('');
             }}
+            onJump={(line) => jumpTo(lineRange(code, line))}
             onInsert={insertSuggestion}
           />
         </Suspense>
@@ -863,28 +1051,21 @@ function App() {
           </div>
         </div>
       )}
-      {createOpen && <ProjectDialog onClose={() => setCreateOpen(false)} onCreate={createProject} />}{' '}
+      {createOpen && <ProjectDialog onClose={() => setCreateOpen(false)} onCreate={createProject} />}
       {showHistory && (
-        <div className="modalBack">
-          <div className="modal">
-            <div className="modalHead">
-              <h2>Historique</h2>
-              <button onClick={() => setShowHistory(false)}>
-                <X />
-              </button>
-            </div>
-            {[...(project.history || [])].reverse().map((h) => (
-              <div className="history" key={h.id}>
-                <div>
-                  <b>{h.label}</b>
-                  <small>{new Date(h.at).toLocaleString()}</small>
-                </div>
-                <button onClick={() => restore(h.id)}>Restaurer</button>
-              </div>
-            ))}
-            {!project.history?.length && <p>Aucune version enregistrée.</p>}
-          </div>
-        </div>
+        <HistoryPanel
+          history={project.history}
+          files={currentFiles}
+          onRestore={restore}
+          onSnapshot={snapshot}
+          onClose={() => setShowHistory(false)}
+        />
+      )}
+      {wordCountOpen && (
+        <WordCountDialog files={currentFiles} main={project.main} onClose={() => setWordCountOpen(false)} />
+      )}
+      {settingsOpen && (
+        <SettingsDialog settings={settings} onChange={updateSettings} onClose={() => setSettingsOpen(false)} />
       )}
       {toast && (
         <div className="toast">

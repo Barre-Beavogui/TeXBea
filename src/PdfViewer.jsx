@@ -1,11 +1,13 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { getDocument, GlobalWorkerOptions, TextLayer } from 'pdfjs-dist';
-import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+// The legacy build polyfills recent JavaScript (e.g. Map.getOrInsertComputed) for Safari and older Chrome.
+import { getDocument, GlobalWorkerOptions, TextLayer } from 'pdfjs-dist/legacy/build/pdf.mjs';
+import workerUrl from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?url';
 import './pdf-text-layer.css';
 import { Minus, Plus, Maximize2 } from 'lucide-react';
+import { locateInPages } from './source-navigation.js';
 GlobalWorkerOptions.workerSrc = workerUrl;
 const clamp = (n) => Math.min(4, Math.max(0.4, n));
-function PdfPage({ page, scale, onSource, occurrences }) {
+function PdfPage({ page, scale, onSource, occurrences, marker }) {
   const canvasRef = useRef(),
     layerRef = useRef();
   const viewport = page.getViewport({ scale });
@@ -59,10 +61,11 @@ function PdfPage({ page, scale, onSource, occurrences }) {
     >
       <canvas ref={canvasRef} style={{ width: viewport.width, height: viewport.height }} />
       <div ref={layerRef} className="textLayer" />
+      {marker && <div key={marker.id} className="pdf-target" style={{ top: marker.top * scale - 6 }} />}
     </div>
   );
 }
-export default function PdfViewer({ url, onSource }) {
+export default function PdfViewer({ url, onSource, target, onTargetMissing }) {
   const [pages, setPages] = useState([]),
     [error, setError] = useState(''),
     [zoom, setZoom] = useState(1),
@@ -71,7 +74,9 @@ export default function PdfViewer({ url, onSource }) {
     anchor = useRef(),
     zoomRef = useRef(zoom),
     callback = useRef(onSource),
-    [counts, setCounts] = useState([]);
+    [counts, setCounts] = useState([]),
+    [texts, setTexts] = useState([]),
+    [marker, setMarker] = useState(null);
   callback.current = onSource;
   zoomRef.current = zoom;
   useEffect(() => {
@@ -79,23 +84,28 @@ export default function PdfViewer({ url, onSource }) {
     const task = getDocument({ url, isEvalSupported: false });
     setError('');
     setPages([]);
+    setTexts([]);
+    setMarker(null);
     setZoom(1);
     (async () => {
       try {
         const doc = await task.promise,
           loaded = [],
           maps = [],
+          pageTexts = [],
           seen = {};
         for (let n = 1; n <= doc.numPages; n++) {
           const page = await doc.getPage(n);
           maps.push({ ...seen });
           const text = await page.getTextContent();
+          pageTexts.push(text.items);
           for (const item of text.items) if (item.str?.trim()) seen[item.str] = (seen[item.str] || 0) + 1;
           loaded.push(page);
         }
         if (!disposed) {
           setPages(loaded);
           setCounts(maps);
+          setTexts(pageTexts);
         }
       } catch (err) {
         if (!disposed) setError('Le PDF ne peut pas être affiché : ' + err.message);
@@ -131,6 +141,29 @@ export default function PdfViewer({ url, onSource }) {
       el.removeEventListener('wheel', wheel);
     };
   }, []);
+  // Forward search: scroll to the place in the PDF that matches the line under the cursor.
+  useEffect(() => {
+    if (!target || !texts.length || !scroller.current) return;
+    const found = locateInPages(texts, target.phrases);
+    if (!found) {
+      onTargetMissing?.();
+      return;
+    }
+    const page = pages[found.page];
+    const height = page.getViewport({ scale: 1 }).height;
+    const top = height - texts[found.page][found.item].transform[5] - 10;
+    setMarker({ page: found.page, top, id: target.id });
+    requestAnimationFrame(() => {
+      const el = scroller.current?.querySelectorAll('.pdf-page')[found.page];
+      if (!el) return;
+      const scale = el.offsetWidth / page.getViewport({ scale: 1 }).width;
+      const offset = el.getBoundingClientRect().top - scroller.current.getBoundingClientRect().top;
+      scroller.current.scrollTo({
+        top: scroller.current.scrollTop + offset + top * scale - scroller.current.clientHeight / 3,
+        behavior: 'smooth',
+      });
+    });
+  }, [target, texts]);
   useLayoutEffect(() => {
     if (anchor.current && scroller.current) {
       const a = anchor.current;
@@ -170,6 +203,7 @@ export default function PdfViewer({ url, onSource }) {
               page={page}
               scale={(width / page.getViewport({ scale: 1 }).width) * zoom}
               occurrences={counts[i] || {}}
+              marker={marker?.page === i ? marker : null}
               onSource={(...args) => callback.current(...args)}
             />
           ))}

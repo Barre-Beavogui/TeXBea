@@ -58,3 +58,52 @@ export function findSourceLocation(files, fragment, occurrence = 0) {
   }
   return matches[Math.min(occurrence, matches.length - 1)] || null;
 }
+
+export const normalizeText = normalize;
+
+// Words of a source line as they would appear in the PDF (commands, comments and markup removed).
+export function searchablePhrases(line) {
+  const words = sourceIndex(line).text.split(' ').filter(Boolean);
+  const phrases = [];
+  for (const size of [6, 4, 3, 2, 1]) {
+    if (words.length < size) continue;
+    const start = Math.max(0, Math.floor((words.length - size) / 2));
+    const phrase = words.slice(start, start + size).join(' ');
+    if (phrase.length >= 4 && !phrases.includes(phrase)) phrases.push(phrase);
+  }
+  return phrases;
+}
+
+// Finds the page and text item of a phrase among the text of each PDF page (forward search, without SyncTeX).
+export function locateInPages(pages, phrases) {
+  const indexed = pages.map((items) => {
+    let text = '';
+    const owners = [];
+    items.forEach((item, i) => {
+      const n = normalize(item.str || '');
+      if (!n) return;
+      if (text) {
+        text += ' ';
+        owners.push(i);
+      }
+      for (const _ of n) owners.push(i);
+      text += n;
+    });
+    return { text, owners };
+  });
+  for (const phrase of phrases) {
+    const hits = [];
+    indexed.forEach(({ text, owners }, page) => {
+      let from = 0,
+        at;
+      while ((at = text.indexOf(phrase, from)) !== -1) {
+        const before = text[at - 1],
+          after = text[at + phrase.length];
+        if ((!before || before === ' ') && (!after || after === ' ')) hits.push({ page, item: owners[at] });
+        from = at + 1;
+      }
+    });
+    if (hits.length) return { ...hits[0], unique: hits.length === 1 };
+  }
+  return null;
+}

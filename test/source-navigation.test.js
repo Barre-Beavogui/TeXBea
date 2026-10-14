@@ -27,3 +27,16 @@ test('ne correspond pas au milieu d’un mot ni aux fragments trop courts', () =
   assert.equal(findSourceLocation(files, 'endement'), null);
   assert.equal(findSourceLocation(files, 'L'), null);
 });
+
+import { searchablePhrases, locateInPages } from '../src/source-navigation.js';
+
+test('du code vers le PDF : phrase cherchée et page trouvée', () => {
+  const phrases = searchablePhrases('Le \\textbf{rendement} est élevé dans ce cas. % note');
+  assert.equal(phrases[0], 'le rendement est eleve dans ce');
+  const pages = [
+    [{ str: 'Introduction' }],
+    [{ str: 'Autre' }, { str: 'Le rendement est' }, { str: 'élevé dans ce cas.' }],
+  ];
+  assert.deepEqual(locateInPages(pages, phrases), { page: 1, item: 1, unique: true });
+  assert.equal(locateInPages(pages, searchablePhrases('\\section{Rien}')), null);
+});

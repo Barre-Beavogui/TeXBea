@@ -15,3 +15,5 @@ Le miroir TeX Live de TeXlyre distribue les paquets à la demande. Les licences 
 PDF.js (`pdfjs-dist`) est utilisé pour le rendu du PDF et sa couche de texte sélectionnable : https://github.com/mozilla/pdf.js ; licence Apache-2.0, fournie avec la dépendance npm.
 
 V3 utilise WebLLM/MLC (`@mlc-ai/web-llm`, Apache-2.0) : https://github.com/mlc-ai/web-llm ; les modèles Qwen 2.5 compilés MLC sont téléchargés depuis https://huggingface.co/mlc-ai, avec les licences de leurs auteurs. JSZip est utilisé sous sa licence MIT (paquet également proposé sous GPL-3.0-or-later) : https://github.com/Stuk/jszip.
+
+L’éditeur utilise CodeMirror 6 (`codemirror`, `@codemirror/*`, `@lezer/highlight`, licence MIT) : https://codemirror.net ; les raccourcis Vim et Emacs proviennent de `@replit/codemirror-vim` et `@replit/codemirror-emacs` (MIT).

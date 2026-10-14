@@ -64,6 +64,74 @@ Votre texte commence ici.
 \end{document}`,
   },
 };
+Object.assign(templates, {
+  homework: {
+    name: 'Devoir de mathématiques',
+    source: String.raw`\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage[margin=2.2cm]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\newtheorem{exercice}{Exercice}
+\theoremstyle{remark}
+\newtheorem*{solution}{Solution}
+\title{Devoir n\textsuperscript{o}~1}
+\author{Votre nom}
+\date{\today}
+\begin{document}
+\maketitle
+\begin{exercice}
+Montrer que pour tout $n \in \mathbb{N}$, $\displaystyle\sum_{k=1}^{n} k = \frac{n(n+1)}{2}$.
+\end{exercice}
+\begin{solution}
+Par récurrence sur $n$.
+\end{solution}
+\end{document}`,
+  },
+  letter: {
+    name: 'Lettre',
+    source: String.raw`\documentclass[11pt,a4paper]{letter}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage[margin=2.5cm]{geometry}
+\signature{Votre nom}
+\address{Votre adresse \\ Code postal Ville}
+\begin{document}
+\begin{letter}{Destinataire \\ Adresse \\ Code postal Ville}
+\opening{Madame, Monsieur,}
+Votre texte commence ici.
+\closing{Veuillez agréer mes salutations distinguées.}
+\end{letter}
+\end{document}`,
+  },
+  cv: {
+    name: 'Curriculum vitæ',
+    source: String.raw`\documentclass[10pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage[margin=1.8cm]{geometry}
+\usepackage{xcolor,hyperref}
+\pagestyle{empty}
+\setlength{\parindent}{0pt}
+\definecolor{accent}{HTML}{DB7544}
+\newcommand{\rubrique}[1]{\vspace{10pt}{\large\bfseries\color{accent}#1}\\[-6pt]\rule{\linewidth}{0.6pt}\par}
+\newcommand{\entree}[3]{\textbf{#1} \hfill #2\\ #3\par\smallskip}
+\begin{document}
+{\Huge\bfseries Prénom Nom}\\[4pt]
+Titre du poste recherché\\
+\href{mailto:vous@exemple.fr}{vous@exemple.fr} · +33 6 00 00 00 00 · Ville
+\rubrique{Expérience}
+\entree{Poste — Entreprise}{2024 – aujourd’hui}{Missions et résultats principaux.}
+\rubrique{Formation}
+\entree{Diplôme — Établissement}{2020 – 2024}{Spécialité, mention.}
+\rubrique{Compétences}
+LaTeX, Python, gestion de projet.
+\end{document}`,
+  },
+});
 export function safePath(name) {
   return (
     typeof name === 'string' &&
@@ -180,4 +248,23 @@ export async function importProject(file) {
     files,
     assets,
   });
+}
+// Renames a source or an image, keeping the main file pointer; used by the browser and the server APIs.
+export function renameFile(project, from, to) {
+  if (!safePath(to)) throw Error('Nom de fichier invalide : ' + to);
+  const assets = project.assets || {};
+  if (!(from in project.files) && !(from in assets)) throw Error('Fichier introuvable : ' + from);
+  if (from === to) return project;
+  if (to in project.files || to in assets) throw Error('Ce fichier existe déjà : ' + to);
+  const isText = from in project.files;
+  if (from === project.main && !to.endsWith('.tex')) throw Error('Le fichier principal doit rester un fichier .tex.');
+  if (isText && /\.(png|jpe?g|pdf)$/i.test(to)) throw Error('Une source texte ne peut pas devenir une image.');
+  if (!isText && !/\.(png|jpe?g|pdf)$/i.test(to)) throw Error('Une image doit garder une extension PNG, JPG ou PDF.');
+  const move = (record) => Object.fromEntries(Object.entries(record).map(([k, v]) => [k === from ? to : k, v]));
+  return {
+    ...project,
+    files: isText ? move(project.files) : project.files,
+    assets: isText ? assets : move(assets),
+    main: project.main === from ? to : project.main,
+  };
 }

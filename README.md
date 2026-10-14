@@ -150,8 +150,23 @@ Les projets sont enregistrés par adresse de site. Les documents de l’ancienne
 - **Gestion** : renommer, dupliquer, corbeille, restauration et suppression définitive après confirmation.
 - **Import/export ZIP** : sources `.tex`, `.bib`, `.sty`, `.cls`, `.bst`, `.txt`, `.csv`, `.md`, images PNG/JPG et PDF ; sous-dossiers et métadonnées du fichier principal. Import d’un `.tex` seul. Un dossier racine commun dans l’archive est retiré pour conserver les chemins relatifs.
 - **Images et sources** : ajout depuis l’atelier, aperçu des images/PDF importés et choix du fichier principal.
-- **Éditeur** : plan cliquable, recherche/remplacement avec version de secours ; Cmd/Ctrl+S pour sauvegarder, Cmd/Ctrl+F pour chercher, Cmd/Ctrl+Entrée pour compiler.
+- **Éditeur** : plan cliquable, recherche/remplacement ; Cmd/Ctrl+S pour sauvegarder, Cmd/Ctrl+F pour chercher, Cmd/Ctrl+Entrée pour compiler. Voir aussi « Fonctions inspirées d’Overleaf » ci-dessous.
 - **Bibliographie** : troisième passe pour les projets utilisant `\bibliography{...}` et BibTeX classique. Biber/biblatex n’est pas intégré à ce moteur navigateur.
+
+### Fonctions inspirées d’Overleaf
+
+- **Éditeur CodeMirror 6** : coloration LaTeX, numéros de ligne, repli des environnements et des sections, accolades appariées et fermées automatiquement, plusieurs curseurs (Alt+clic), annuler/rétablir par fichier, recherche et remplacement avec expressions régulières (Ctrl/Cmd+F).
+- **Suggestions automatiques** : commandes courantes avec champs à remplir, `\begin{…}` qui ajoute le `\end{…}` correspondant, `\end{` qui propose l’environnement ouvert, étiquettes après `\ref{`, clés BibTeX et `\bibitem` après `\cite{`, fichiers après `\input{` et `\includegraphics{`, paquets après `\usepackage{`, commandes définies dans le projet.
+- **Barre d’outils** : titres, gras/italique (Ctrl/Cmd+B/I), formules, listes, lien, référence, citation, figure, tableau (grille jusqu’à 8 × 8), commentaire (Ctrl/Cmd+/) et palette de symboles mathématiques avec recherche.
+- **Journal de compilation** : erreurs, avertissements et problèmes de mise en page regroupés, compteurs sur le bouton Journal, clic pour aller au fichier et à la ligne, marques dans la marge de l’éditeur, journal brut, « Demander à Bea » sur une erreur. Le journal s’ouvre seul si la compilation échoue.
+- **Code ↔ PDF** : double-clic dans le PDF pour aller au code (existant) et bouton **Voir dans le PDF** pour aller du curseur au passage correspondant. Recherche par le texte, pas par SyncTeX : les formules ou textes générés peuvent ne pas être retrouvés.
+- **Compilation** : compilation automatique après une pause (réglage), bouton Arrêter pendant une compilation dans le navigateur.
+- **Projet** : arborescence avec dossiers (`chapitres/intro.tex` crée le dossier), renommer ou déplacer un fichier, recherche dans tout le projet (Ctrl/Cmd+Maj+F, casse, mot entier, regex), nombre de mots façon Overleaf (texte, titres, légendes, formules, flottants, fichiers inclus).
+- **Historique** : comparaison ligne à ligne de n’importe quelle version avec l’état actuel, fichier par fichier ; une version « Avant restauration » est créée avant chaque restauration.
+- **Réglages** : thème clair ou sombre de l’éditeur, taille du texte, raccourcis Vim ou Emacs (chargés à la demande), correcteur d’orthographe du navigateur (français, anglais, etc.), suggestions, fermeture automatique, retour à la ligne, liste des raccourcis.
+- **Modèles** : devoir de mathématiques, lettre et CV en plus de l’article, du rapport et de la présentation.
+
+Pas encore disponible par rapport à Overleaf : collaboration en temps réel, partage par lien, commentaires et suivi des modifications, chat, éditeur visuel, XeLaTeX/LuaLaTeX dans le navigateur, SyncTeX exact, synchronisation Git/Dropbox et import Zotero/Mendeley.
 
 ### Conditions et limites
 
