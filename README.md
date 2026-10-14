@@ -27,9 +27,17 @@ npm run dev
 
 Ouvre ensuite `http://localhost:5173`. À la première utilisation, clique sur **Première visite ? Créer un compte**.
 
+## Tests
+
+```bash
+npm test
+```
+
+Les tests (`test/`, exécutés avec `node --test`, sans dépendance supplémentaire) couvrent la validation des chemins et des projets, l’import ZIP, l’analyse LaTeX sans IA, le retour PDF → source et l’API navigateur (projets, versions, corbeille, stockage plein). Le workflow `.github/workflows/ci.yml` lance les tests et les deux builds sur chaque pull request.
+
 ## Installation sur Mac
 
-Place-toi dans le dossier contenant `package.json` avant de lancer les commandes. Le dossier `texnova` du premier prototype est distinct de cette V2.
+Place-toi dans le dossier contenant `package.json` avant de lancer les commandes. Le dossier `texnova` du premier prototype est distinct de TeXBea.
 
 Pour compiler les documents, installe MacTeX, puis vérifie dans un nouveau terminal :
 
@@ -68,7 +76,7 @@ Le serveur Express sert automatiquement `dist/` si le build existe. Port par dé
 - `server/pdfs/` : PDF compilés.
 
 ## Sécurité / limites avant mise en ligne publique
-Cette V2 est un **socle réellement exécutable**, mais pas encore une infrastructure SaaS durcie. Avant d'exposer le service à Internet :
+Le mode serveur est un **socle réellement exécutable**, mais pas encore une infrastructure SaaS durcie. Avant d'exposer le service à Internet :
 1. Exécuter chaque compilation dans un conteneur/VM éphémère sans réseau avec limites CPU/RAM/PID/disque (ne pas compter uniquement sur `-no-shell-escape`).
 2. Remplacer le JSON local par PostgreSQL et les sessions mémoire par un stockage persistant/Redis ou des cookies de session sécurisés.
 3. Ajouter HTTPS, CSRF selon le mode de session, rate limiting, validation plus stricte, quotas et nettoyage périodique des PDF.
