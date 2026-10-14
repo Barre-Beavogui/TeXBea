@@ -1,6 +1,6 @@
 {
   "name": "texbea",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -11,9 +11,11 @@
     "build:demo": "vite build --mode demo"
   },
   "dependencies": {
+    "@mlc-ai/web-llm": "^0.2.86",
     "@vitejs/plugin-react": "latest",
     "concurrently": "latest",
     "express": "latest",
+    "jszip": "^3.10.2",
     "lucide-react": "latest",
     "pdfjs-dist": "^6.4.299",
     "react": "latest",

@@ -1,6 +1,6 @@
-# TeXBea V2 — socle LaTeX utilisable
+# TeXBea V3 — atelier LaTeX et IA locale
 
-TeXBea V2 transforme le prototype V1 en une application full-stack locale prête à servir de base à une alternative à Overleaf. La V2 reste volontairement centrée sur le socle : tes innovations pourront être développées en V3 sans dépendre d'idées imposées ici.
+TeXBea V3 est un atelier LaTeX avec compilation PDF, gestion des projets et assistant IA local. La version GitHub Pages fonctionne sans compte ni clé API ; les documents sont conservés dans le navigateur. Le serveur Express reste disponible pour l’utilisation locale.
 
 ## Inclus
 - Comptes locaux avec mots de passe hachés via `scrypt` (Node.js).
@@ -132,3 +132,31 @@ Site public : https://barre-beavogui.github.io/TeXBea/
 Chaque envoi sur `main` lance le workflow `.github/workflows/pages.yml`, construit la version navigateur et la publie sur GitHub Pages. Le moteur LaTeX et le lecteur PDF prennent en charge le sous-chemin du dépôt. Le serveur Express n’est pas exécuté par GitHub Pages ; cette version compile réellement les PDF dans le navigateur.
 
 Les projets sont enregistrés par adresse de site. Les documents de l’ancienne adresse ne sont donc pas transférés automatiquement vers GitHub Pages ; exporte tes fichiers `.tex` depuis l’ancien site pour les conserver.
+
+## V3 : première étape
+
+- **Bea, assistant local** : Qwen 2.5 1,5B recommandé, 0,5B compact en option. Modèle chargé uniquement après clic. Téléchargement initial, progression, arrêt de la génération et annulation du chargement en fermant le panneau. Le document n’est pas envoyé à un service d’IA.
+- **Propositions révisables** : réponse visible avant application, choix entre fin du document, sélection/curseur ou préambule pour les fragments ; remplacement explicite pour un document complet. Une version de secours est sauvegardée avant chaque application.
+- **Analyse sans IA** : accolades, environnements et fichiers inclus ; accès aux lignes signalées. Analyse limitée qui ne remplace pas le compilateur.
+- **Modèles** : article scientifique, rapport/mémoire et présentation Beamer.
+- **Gestion** : renommer, dupliquer, corbeille, restauration et suppression définitive après confirmation.
+- **Import/export ZIP** : sources `.tex`, `.bib`, `.sty`, `.cls`, `.bst`, `.txt`, `.csv`, `.md`, images PNG/JPG et PDF ; sous-dossiers et métadonnées du fichier principal. Import d’un `.tex` seul. Un dossier racine commun dans l’archive est retiré pour conserver les chemins relatifs.
+- **Images et sources** : ajout depuis l’atelier, aperçu des images/PDF importés et choix du fichier principal.
+- **Éditeur** : plan cliquable, recherche/remplacement avec version de secours ; Cmd/Ctrl+S pour sauvegarder, Cmd/Ctrl+F pour chercher, Cmd/Ctrl+Entrée pour compiler.
+- **Bibliographie** : troisième passe pour les projets utilisant `\bibliography{...}` et BibTeX classique. Biber/biblatex n’est pas intégré à ce moteur navigateur.
+
+### Conditions et limites
+
+L’IA nécessite WebGPU, plusieurs centaines de Mo à environ un Go de téléchargement selon le modèle et environ 1–2 Go de mémoire graphique. Chrome récent sur ordinateur est recommandé. Les petits modèles peuvent proposer du code incorrect : l’utilisateur révise et compile les propositions. Si WebGPU est absent, l’analyse et tous les outils de projets restent utilisables. Le chargement des ressources utilise Hugging Face et les bibliothèques MLC ; seules les ressources des modèles sont téléchargées, pas le document. [Documentation WebLLM](https://webllm.mlc.ai/docs/user/get_started.html).
+
+La limite actuelle est de 200 fichiers et 3 Mo de contenu source/Base64 par projet, sous réserve du quota global de stockage du navigateur. Un dépassement est signalé sans remplacer les données déjà enregistrées. Exporter régulièrement ses ZIP est recommandé. Les ZIP conservent les fichiers et le fichier principal ; l’historique reste dans le navigateur. Pas de partage public automatique des documents.
+
+La collaboration simultanée entre utilisateurs sur Internet et les invitations ne sont pas encore déployées : elles feront l’objet d’une prochaine étape avec un serveur de synchronisation et des règles d’accès. Le ZIP fournit aujourd’hui un partage de copie utilisable. La synchronisation WebSocket du serveur local est limitée aux projets de l’utilisateur authentifié.
+
+### Validation V3
+
+- Conservation des données existantes, opérations de projets, snapshots, validation des chemins et erreur de quota sans perte des données précédentes.
+- Import d’un ZIP avec source dans un sous-dossier et PNG, compilation réelle, puis export des mêmes fichiers.
+- Recherche/remplacement, restauration de la version préalable, duplication/corbeille et vues 320/390 pixels.
+- Chargement réel de Qwen 2.5 0,5B et 1,5B avec WebGPU ; réponse spécifique du modèle recommandé et compilation après application avec une version de secours.
+- API serveur : modèles, images, duplication, corbeille et snapshots ; bibliographie BibTeX résolue en PDF.
