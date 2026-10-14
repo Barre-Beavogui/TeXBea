@@ -137,3 +137,20 @@ test('comparaison de versions', () => {
     { name: 'c.tex', status: 'added', added: 2, removed: 0 },
   ]);
 });
+
+import { magicProgram, effectiveCompiler, needsUnicodeEngine } from '../src/compilers.js';
+
+test('choix du compilateur : commentaire magique, réglage du projet, défaut', () => {
+  assert.equal(magicProgram('% !TEX program = xelatex\n\\documentclass{article}'), 'xelatex');
+  assert.equal(magicProgram('%!TeX TS-program = LuaLaTeX'), 'lualatex');
+  assert.equal(magicProgram('% !TEX program = xetex'), 'xelatex');
+  assert.equal(magicProgram('% !TEX program = inconnu'), null);
+  assert.equal(effectiveCompiler({ main: 'm.tex', files: { 'm.tex': 'x' }, compiler: 'lualatex' }), 'lualatex');
+  assert.equal(
+    effectiveCompiler({ main: 'm.tex', files: { 'm.tex': '% !TEX program = xelatex' }, compiler: 'lualatex' }),
+    'xelatex',
+  );
+  assert.equal(effectiveCompiler({ main: 'm.tex', files: { 'm.tex': 'x' }, compiler: 'rm -rf' }), 'pdflatex');
+  assert.equal(needsUnicodeEngine({ 'a.tex': '\\usepackage{amsmath,fontspec}' }), true);
+  assert.equal(needsUnicodeEngine({ 'a.tex': '% \\usepackage{fontspec}' }), false);
+});

@@ -98,3 +98,11 @@ test('renommer ou déplacer un fichier, y compris le fichier principal', async (
     (e) => e.status === 409,
   );
 });
+
+test('le compilateur choisi est gardé avec le projet', async () => {
+  const [{ id }] = await call('/projects');
+  const p = await call(`/projects/${id}`, 'PUT', { compiler: 'xelatex' });
+  assert.equal(p.compiler, 'xelatex');
+  assert.equal((await call(`/projects/${id}`)).compiler, 'xelatex');
+  await assert.rejects(call(`/projects/${id}`, 'PUT', { compiler: 'context' }), /Compilateur inconnu/);
+});

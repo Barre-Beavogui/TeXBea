@@ -87,3 +87,10 @@ test('importProject accepte un .tex seul', async () => {
   assert.equal(p.name, 'rapport');
   assert.equal(p.main, 'rapport.tex');
 });
+
+test('le compilateur passe par l’import et l’export', async () => {
+  const { validateProject } = await import('../src/project-tools.js');
+  const files = { 'main.tex': '\\documentclass{article}' };
+  assert.equal(validateProject({ main: 'main.tex', files, compiler: 'lualatex' }).compiler, 'lualatex');
+  assert.equal(validateProject({ main: 'main.tex', files, compiler: 'rm -rf' }).compiler, undefined);
+});

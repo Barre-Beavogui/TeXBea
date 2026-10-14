@@ -24,7 +24,7 @@ import {
   foldService,
 } from '@codemirror/language';
 import { stex } from '@codemirror/legacy-modes/mode/stex';
-import { defaultKeymap, history, historyKeymap, indentWithTab, toggleComment } from '@codemirror/commands';
+import { defaultKeymap, history, historyKeymap, indentWithTab, toggleComment, undo } from '@codemirror/commands';
 import { searchKeymap, highlightSelectionMatches, openSearchPanel } from '@codemirror/search';
 import {
   autocompletion,
@@ -327,6 +327,7 @@ const CodeEditor = forwardRef(function CodeEditor(
           { key: 'Mod-s', run: run('save'), preventDefault: true },
           { key: 'Mod-Enter', run: run('compile'), preventDefault: true },
           { key: 'Mod-Shift-f', run: run('projectSearch'), preventDefault: true },
+          { key: 'Mod-j', run: run('bea'), preventDefault: true },
           { key: 'Mod-b', run: (v) => wrapWith(v, '\\textbf{', '}') },
           { key: 'Mod-i', run: (v) => wrapWith(v, '\\textit{', '}') },
           { key: 'Mod-/', run: toggleComment },
@@ -445,6 +446,24 @@ const CodeEditor = forwardRef(function CodeEditor(
     },
     toggleComment: () => toggleComment(view.current),
     openSearch: () => openSearchPanel(view.current),
+    select: (from, to) => {
+      const v = view.current;
+      v.dispatch({ selection: { anchor: from, head: to }, scrollIntoView: true });
+    },
+    // Bea's edits: applied only if the target text is still what she read, as one undoable step (Ctrl+Z).
+    replaceRange: (from, to, expected, text) => {
+      const v = view.current;
+      if (to > v.state.doc.length || v.state.sliceDoc(from, to) !== expected) return false;
+      v.dispatch({
+        changes: { from, to, insert: text },
+        selection: { anchor: from, head: from + text.length },
+        scrollIntoView: true,
+        userEvent: 'input.ai',
+      });
+      v.focus();
+      return true;
+    },
+    undo: () => undo(view.current),
   }));
 
   return <div className="cm-host" ref={host} />;

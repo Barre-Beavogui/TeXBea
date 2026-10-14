@@ -1,4 +1,5 @@
 import { safePath, validateProject, templates, renameFile } from '../src/project-tools.js';
+import { compilers, effectiveCompiler, isCompiler } from '../src/compilers.js';
 import express from 'express';
 import crypto from 'crypto';
 import fs from 'fs';
@@ -179,6 +180,10 @@ app.put('/api/projects/:pid', auth, async (req, res) => {
   if ('deleted' in req.body) p.deleted = !!req.body.deleted;
   if (req.body.name) p.name = String(req.body.name).slice(0, 80);
   if (req.body.main && p.files[req.body.main] != null) p.main = req.body.main;
+  if (req.body.compiler) {
+    if (!isCompiler(req.body.compiler)) return res.status(400).json({ error: 'Compilateur inconnu' });
+    p.compiler = req.body.compiler;
+  }
   p.updatedAt = new Date().toISOString();
   await save(d);
   res.json(publicProject(p));
@@ -298,7 +303,8 @@ app.post('/api/projects/:pid/compile', auth, async (req, res) => {
       await fsp.mkdir(path.dirname(path.join(dir, n)), { recursive: true });
       await fsp.writeFile(path.join(dir, n), Buffer.from(c, 'base64'));
     }
-    const args = ['-pdf', '-interaction=nonstopmode', '-halt-on-error', '-no-shell-escape', p.main];
+    const flag = compilers.find((c) => c.id === effectiveCompiler(p)).latexmk;
+    const args = [flag, '-interaction=nonstopmode', '-halt-on-error', '-no-shell-escape', p.main];
     const result = await new Promise((resolve) => {
       const cp = spawn(process.env.LATEX_ENGINE || 'latexmk', args, {
         cwd: dir,

@@ -1,3 +1,4 @@
+import { isCompiler } from './compilers.js';
 export const templates = {
   article: {
     name: 'Article scientifique',
@@ -175,7 +176,9 @@ export function validateProject(input) {
     Object.keys(files).find((n) => /\\documentclass/.test(files[n]));
   if (!main || typeof files[main] !== 'string' || !main.endsWith('.tex'))
     throw Error('Aucun fichier principal .tex valide.');
-  return { name: String(input.name || 'Projet importé').slice(0, 80), main, files, assets };
+  const project = { name: String(input.name || 'Projet importé').slice(0, 80), main, files, assets };
+  if (isCompiler(input.compiler)) project.compiler = input.compiler;
+  return project;
 }
 export function downloadBlob(blob, name) {
   const url = URL.createObjectURL(blob);
@@ -190,7 +193,10 @@ export async function exportProject(project) {
   const zip = new JSZip();
   for (const [n, c] of Object.entries(project.files)) zip.file(n, c);
   for (const [n, c] of Object.entries(project.assets || {})) zip.file(n, c, { base64: true });
-  zip.file('.texbea/project.json', JSON.stringify({ name: project.name, main: project.main }, null, 2));
+  zip.file(
+    '.texbea/project.json',
+    JSON.stringify({ name: project.name, main: project.main, compiler: project.compiler || 'pdflatex' }, null, 2),
+  );
   downloadBlob(
     await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' }),
     project.name.replace(/[^\p{L}\p{N}_-]/gu, '_') + '.zip',
@@ -245,6 +251,7 @@ export async function importProject(file) {
   return validateProject({
     name: metadata.name || file.name.replace(/\.zip$/i, ''),
     main: strip && metadata.main?.startsWith(strip) ? metadata.main.slice(strip.length) : metadata.main,
+    compiler: metadata.compiler,
     files,
     assets,
   });

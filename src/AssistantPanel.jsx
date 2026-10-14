@@ -1,18 +1,27 @@
 import React, { useMemo, useState } from 'react';
 import { Sparkles, X, CheckCircle2, Download, Square } from 'lucide-react';
 import { analyzeLatex } from './latex-analysis.js';
-import { aiModels, activateAI, cancelActivation, aiReady, askAI, stopGeneration } from './local-ai.js';
+import {
+  aiModels,
+  activateAI,
+  cancelActivation,
+  aiReady,
+  askAI,
+  stopGeneration,
+  loadedModel,
+  preferredModel,
+} from './local-ai.js';
 export default function AssistantPanel({ source, files, log, onClose, onJump, onInsert, initialPrompt = '' }) {
   const [tab, setTab] = useState(initialPrompt ? 'ai' : 'analysis'),
-    [model, setModel] = useState(aiModels[0].id),
-    [ready, setReady] = useState(aiReady(aiModels[0].id)),
+    [model, setModel] = useState(loadedModel() || preferredModel()),
+    [ready, setReady] = useState(!!loadedModel()),
     [busy, setBusy] = useState(false),
     [loading, setLoading] = useState(false),
     [progress, setProgress] = useState(0),
     [prompt, setPrompt] = useState(initialPrompt),
     [answer, setAnswer] = useState(''),
     [error, setError] = useState(''),
-    [placement, setPlacement] = useState('body');
+    [placement, setPlacement] = useState('selection');
   const issues = useMemo(() => analyzeLatex(source, files), [source, files]);
   const proposal = answer.match(/```(?:latex|tex)?\s*\n([\s\S]*?)```/i)?.[1];
   const fullDocument = !!proposal && /\\documentclass/.test(proposal) && /\\begin\{document\}/.test(proposal);
@@ -185,8 +194,8 @@ export default function AssistantPanel({ source, files, log, onClose, onJump, on
                           value={placement}
                           onChange={(e) => setPlacement(e.target.value)}
                         >
+                          <option value="selection">Au curseur (remplace la sélection)</option>
                           <option value="body">À la fin du document</option>
-                          <option value="selection">À la sélection / au curseur</option>
                           <option value="preamble">Dans le préambule</option>
                         </select>
                       </label>

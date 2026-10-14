@@ -3,7 +3,9 @@ import { documentOutline } from './latex-analysis.js';
 import ProjectLibrary, { Brand, ProjectDialog } from './ProjectLibrary.jsx';
 import { findSourceLocation, searchablePhrases } from './source-navigation.js';
 import { compileInBrowser, cancelCompile } from './browser-compiler.js';
+import { compilers, effectiveCompiler, magicProgram, needsUnicodeEngine } from './compilers.js';
 import { parseLatexLog } from './log-parser.js';
+import { actionById, targetFor, lineWindow } from './ai-actions.js';
 import { loadSettings, saveSettings } from './settings.js';
 import { demoApi } from './demo-api.js';
 import CodeEditor from './CodeEditor.jsx';
@@ -41,6 +43,7 @@ import {
 } from 'lucide-react';
 import './style.css';
 const AssistantPanel = lazy(() => import('./AssistantPanel.jsx'));
+const InlineAssistant = lazy(() => import('./InlineAssistant.jsx'));
 const PdfViewer = lazy(() => import('./PdfViewer.jsx'));
 const API = '/api';
 async function api(path, opt = {}) {
@@ -159,6 +162,7 @@ function App() {
     [settingsOpen, setSettingsOpen] = useState(false),
     [settings, setSettings] = useState(loadSettings),
     [cursor, setCursor] = useState({ line: 1, column: 1 }),
+    [beaRequest, setBeaRequest] = useState(null),
     [pdfTarget, setPdfTarget] = useState(null),
     [assetPreview, setAssetPreview] = useState(null),
     timer = useRef(),
@@ -311,8 +315,11 @@ function App() {
     try {
       if (dirty && !(await saveFile(true))) throw new Error('Sauvegarde impossible. Compilation annulée.');
       const current = { ...project, files: currentFiles };
+      const engine = effectiveCompiler(current);
+      if (engine === 'pdflatex' && needsUnicodeEngine(currentFiles) && !auto)
+        notify('fontspec / polyglossia demandent XeLaTeX ou LuaLaTeX : change le compilateur dans le menu à gauche.');
       const j = DEMO
-        ? await compileInBrowser(current, setCompilePhase)
+        ? await compileInBrowser(current, setCompilePhase, engine)
         : await api(`/projects/${project.id}/compile`, { method: 'POST' });
       setPdf(j.url + (DEMO ? '' : '?token=' + encodeURIComponent(localStorage.tn_token)));
       setLog(j.log || '');
@@ -504,6 +511,14 @@ function App() {
       notify(e.message);
     }
   }
+  async function changeCompiler(compiler) {
+    try {
+      setProject(await api('/projects/' + project.id, { method: 'PUT', body: JSON.stringify({ compiler }) }));
+      notify('Compilateur : ' + compilers.find((c) => c.id === compiler).label);
+    } catch (e) {
+      notify(e.message);
+    }
+  }
   // Opens a file (saving the current one first) and selects a range in it.
   async function openAt(file, location) {
     if (file !== active) {
@@ -528,6 +543,55 @@ function App() {
       `Explique cette erreur LaTeX et propose une correction${entry.line ? ` (ligne ${entry.line} de ${entry.file})` : ''} : ${entry.message}`,
     );
     openAssistant();
+  }
+  // Starts Bea on the selection (or the paragraph under the cursor) of the open file.
+  function startBea(actionId = 'custom', instruction = '') {
+    const ed = editorRef.current;
+    if (!ed) return;
+    const action = actionById(actionId);
+    const { from, to } = targetFor(code, ed.selection(), action);
+    const original = code.slice(from, to);
+    if (action.mode === 'replace' && !original.trim()) {
+      notify('Sélectionne un passage ou place le curseur dans un paragraphe.');
+      return;
+    }
+    if (action.mode === 'replace') ed.select(from, to);
+    const first = code.slice(0, from).split('\n').length,
+      last = first + original.trimEnd().split('\n').length - 1;
+    setMobilePane('code');
+    setBeaRequest({
+      id: Date.now(),
+      action,
+      instruction,
+      file: active,
+      from,
+      to,
+      original,
+      before: code.slice(Math.max(0, from - 2000), from),
+      after: code.slice(to, to + 800),
+      lines:
+        action.mode === 'insert' ? `ligne ${first}` : first === last ? `ligne ${first}` : `lignes ${first}–${last}`,
+    });
+  }
+  // From the log: Bea rewrites the lines around the error, with the error message as context.
+  async function fixWithBea(entry) {
+    const source = currentFiles[entry.file];
+    if (source === undefined || !entry.line) return askBeaAbout(entry);
+    const { from, to, firstLine, lastLine } = lineWindow(source, entry.line, 2);
+    setLogOpen(false);
+    await openAt(entry.file, { line: entry.line, start: from, end: to });
+    setBeaRequest({
+      id: Date.now(),
+      action: actionById('fix-error'),
+      file: entry.file,
+      from,
+      to,
+      original: source.slice(from, to),
+      before: source.slice(Math.max(0, from - 1200), from),
+      after: source.slice(to, to + 500),
+      error: entry.raw || entry.message,
+      lines: `lignes ${firstLine}–${lastLine}`,
+    });
   }
   async function replaceWithBackup(next, label = 'Avant remplacement') {
     if (!(await saveFile(true))) throw Error('Sauvegarde impossible');
@@ -829,6 +893,24 @@ function App() {
                   ))}
               </select>
             </label>
+            <label className="main-file-label">
+              Compilateur
+              <select
+                aria-label="Compilateur"
+                value={project.compiler || 'pdflatex'}
+                onChange={(e) => changeCompiler(e.target.value)}
+              >
+                {compilers.map((c) => (
+                  <option key={c.id} value={c.id} disabled={DEMO && !c.browser}>
+                    {c.label}
+                    {DEMO && !c.browser ? ' (serveur local)' : ''}
+                  </option>
+                ))}
+              </select>
+              {magicProgram(currentFiles[project.main] || '') && (
+                <small>Imposé par « % !TEX program » dans {project.main}</small>
+              )}
+            </label>
             <button onClick={() => setShowHistory(true)}>
               <History size={15} />
               Historique ({project.history?.length || 0})
@@ -888,7 +970,20 @@ function App() {
             </button>
             <span>V3</span>
           </div>
-          <EditorToolbar editor={editorRef} />
+          <EditorToolbar editor={editorRef} onBea={startBea} />
+          {beaRequest && beaRequest.file === active && (
+            <Suspense fallback={null}>
+              <InlineAssistant
+                key={beaRequest.id}
+                request={beaRequest}
+                editor={editorRef}
+                autoApply={settings.aiAutoApply}
+                onAutoApplyChange={(v) => updateSettings({ ...settings, aiAutoApply: v })}
+                onClose={() => setBeaRequest(null)}
+                notify={notify}
+              />
+            </Suspense>
+          )}
           {projectSearch && (
             <ProjectSearch
               files={currentFiles}
@@ -915,6 +1010,7 @@ function App() {
                 save: () => saveFile(),
                 compile: () => compile(),
                 projectSearch: () => setProjectSearch(true),
+                bea: () => startBea('custom'),
               }}
             />
           </div>
@@ -967,6 +1063,7 @@ function App() {
                 raw={log}
                 onJump={jumpToLog}
                 onAskBea={askBeaAbout}
+                onFixWithBea={fixWithBea}
                 onClose={() => setLogOpen(false)}
               />
             ) : pdf ? (
@@ -1000,7 +1097,10 @@ function App() {
               <span className={pdf ? 'green' : errorCount ? 'red' : 'amber'}></span>
               {pdf ? 'PDF généré' : errorCount ? 'Erreurs de compilation' : 'En attente'}
             </span>
-            <span>{settings.autoCompile ? 'Compilation auto' : 'TeXBea Engine'}</span>
+            <span>
+              {compilers.find((c) => c.id === effectiveCompiler({ ...project, files: currentFiles }))?.label}
+              {settings.autoCompile ? ' · Compilation auto' : ''}
+            </span>
           </div>
         </section>
       </main>

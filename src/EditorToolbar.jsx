@@ -12,7 +12,10 @@ import {
   Hash,
   MessageSquareOff,
   X,
+  Sparkles,
+  ChevronDown,
 } from 'lucide-react';
+import { aiActions } from './ai-actions.js';
 
 export const symbolGroups = {
   Grec: 'alpha beta gamma delta epsilon varepsilon zeta eta theta vartheta iota kappa lambda mu nu xi pi rho sigma tau upsilon phi varphi chi psi omega Gamma Delta Theta Lambda Xi Pi Sigma Phi Psi Omega',
@@ -241,7 +244,23 @@ function SymbolPalette({ onInsert, onClose }) {
 }
 
 // Formatting toolbar, like Overleaf's editor toolbar: everything inserts plain LaTeX at the cursor.
-export default function EditorToolbar({ editor }) {
+function BeaMenu({ onPick }) {
+  return (
+    <div className="toolbar-popover bea-menu" role="menu" aria-label="Actions de Bea">
+      <p>Sur la sélection, ou sur le paragraphe du curseur :</p>
+      {aiActions
+        .filter((a) => !a.hidden)
+        .map((a) => (
+          <button key={a.id} role="menuitem" onClick={() => onPick(a.id)}>
+            {a.label}
+            {a.id === 'custom' && <kbd>Ctrl/Cmd+J</kbd>}
+          </button>
+        ))}
+    </div>
+  );
+}
+
+export default function EditorToolbar({ editor, onBea }) {
   const [open, setOpen] = useState(null);
   const ed = () => editor.current;
   const insert = (s) => ed()?.insert(s);
@@ -249,6 +268,22 @@ export default function EditorToolbar({ editor }) {
   return (
     <div className="editor-toolbar-wrap">
       <div className="editor-toolbar" role="toolbar" aria-label="Mise en forme LaTeX">
+        {onBea && (
+          <>
+            <button
+              className="bea-button"
+              title="Bea corrige, améliore, traduit ou rédige directement dans le code"
+              aria-label="Bea"
+              aria-expanded={open === 'bea'}
+              onClick={() => toggle('bea')}
+            >
+              <Sparkles size={15} />
+              Bea
+              <ChevronDown size={13} />
+            </button>
+            <span className="toolbar-sep" />
+          </>
+        )}
         <select
           aria-label="Titre de section"
           value=""
@@ -335,6 +370,14 @@ export default function EditorToolbar({ editor }) {
           <MessageSquareOff size={15} />
         </button>
       </div>
+      {open === 'bea' && (
+        <BeaMenu
+          onPick={(id) => {
+            setOpen(null);
+            onBea(id);
+          }}
+        />
+      )}
       {open === 'symbols' && <SymbolPalette onInsert={insert} onClose={() => setOpen(null)} />}
       {open === 'table' && (
         <TableDialog

@@ -10,6 +10,8 @@ La licence fournie par le dépôt est copiée dans `public/latex/LICENSE`. Les n
 
 Modification locale : le miroir par défaut `https://texlive2.swiftlatex.com/` est remplacé par `https://texlive.texlyre.org/`. Le reste des artefacts de compilation est conservé tel quel. Le code source correspondant et les instructions de construction sont disponibles dans le dépôt amont au tag indiqué ; le changement local peut être reproduit par cette substitution de chaîne dans le fichier JavaScript.
 
+XeTeX et dvipdfmx (compilateur XeLaTeX dans le navigateur) : `public/latex/swiftlatexxetex.js`, `swiftlatexxetex.wasm`, `swiftlatexdvipdfm.js` et `swiftlatexdvipdfm.wasm` sont les builds SwiftLaTeX redistribués par TeXlyre (https://github.com/TeXlyre/texlyre, AGPL-3.0-or-later, commit d10e020a7c6452c83dedebf943615dcecfe65919, dossier `public/core/swiftlatex`). Les fichiers sont repris tels quels, avec le miroir réglé sur `https://texlive.texlyre.org/`.
+
 Le miroir TeX Live de TeXlyre distribue les paquets à la demande. Les licences de ces paquets restent celles de leurs auteurs.
 
 PDF.js (`pdfjs-dist`) est utilisé pour le rendu du PDF et sa couche de texte sélectionnable : https://github.com/mozilla/pdf.js ; licence Apache-2.0, fournie avec la dépendance npm.

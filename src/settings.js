@@ -9,6 +9,7 @@ export const defaultSettings = {
   closeBrackets: true,
   spellcheck: 'off',
   autoCompile: false,
+  aiAutoApply: false,
 };
 export function loadSettings() {
   try {

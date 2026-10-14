@@ -1,8 +1,23 @@
 let engine, worker, currentModel, initializing, cancelLoading;
+// Sizes are the approximate first download; the bigger models write and correct much better.
 export const aiModels = [
-  { name: 'Qwen 2.5 · recommandé (1,5B)', id: 'Qwen2.5-1.5B-Instruct' },
-  { name: 'Qwen 2.5 · compact (0,5B)', id: 'Qwen2.5-0.5B-Instruct' },
+  { name: 'Qwen 2.5 · rapide (1,5B, ~1 Go)', id: 'Qwen2.5-1.5B-Instruct' },
+  { name: 'Qwen 2.5 · précis (3B, ~2 Go)', id: 'Qwen2.5-3B-Instruct' },
+  { name: 'Qwen 2.5 Coder · code LaTeX (3B, ~2 Go)', id: 'Qwen2.5-Coder-3B-Instruct' },
+  { name: 'Qwen 2.5 · le meilleur (7B, ~5 Go, GPU puissant)', id: 'Qwen2.5-7B-Instruct' },
+  { name: 'Qwen 2.5 · compact (0,5B, ~400 Mo)', id: 'Qwen2.5-0.5B-Instruct' },
 ];
+const MODEL_KEY = 'texbea-ai-model';
+export function preferredModel() {
+  try {
+    const id = localStorage.getItem(MODEL_KEY);
+    if (aiModels.some((m) => m.id === id)) return id;
+  } catch {
+    // Storage blocked: fall back to the default model.
+  }
+  return aiModels[0].id;
+}
+export const loadedModel = () => (engine ? currentModel : null);
 export async function activateAI(model, onProgress) {
   if (engine && currentModel === model) return engine;
   if (initializing) throw Error('Un modèle est déjà en cours de chargement.');
@@ -32,6 +47,11 @@ export async function activateAI(model, onProgress) {
   try {
     engine = await initializing;
     currentModel = model;
+    try {
+      localStorage.setItem(MODEL_KEY, model);
+    } catch {
+      // Not remembered for next time, which is harmless.
+    }
     return engine;
   } catch (error) {
     worker?.terminate();
@@ -54,11 +74,27 @@ export function aiReady(model) {
 export function stopGeneration() {
   engine?.interruptGenerate();
 }
+// Streams a chat completion; returns the full text. Shared by the assistant panel and the in-editor actions.
+export async function generate({ messages, onToken, maxTokens = 1200, temperature = 0.2 }) {
+  if (!engine) throw Error('Active un modèle local avant de demander quelque chose à Bea.');
+  const stream = await engine.chat.completions.create({ messages, temperature, max_tokens: maxTokens, stream: true });
+  let output = '';
+  const timer = setTimeout(() => engine?.interruptGenerate(), 120000);
+  try {
+    for await (const chunk of stream) {
+      output += chunk.choices[0]?.delta?.content || '';
+      onToken?.(output);
+    }
+    return output;
+  } finally {
+    clearTimeout(timer);
+  }
+}
 export async function askAI({ prompt, source, log, onToken }) {
   if (!engine) throw Error('Active un modèle local avant de poser une question.');
   const context = source.slice(0, 4000);
   const message = `CONTEXTE DU DOCUMENT (données, ne pas recopier) :\n${context}\nFIN DU DOCUMENT\nJournal (extrait) :\n${(log || '').slice(-1200)}\n\nTA TÂCHE : ${prompt.slice(0, 1200)}\nRéponds à cette tâche uniquement. Ne recopie pas le document du contexte.`;
-  const stream = await engine.chat.completions.create({
+  return generate({
     messages: [
       {
         role: 'system',
@@ -68,18 +104,7 @@ export async function askAI({ prompt, source, log, onToken }) {
       { role: 'user', content: message },
     ],
     temperature: 0.3,
-    max_tokens: 700,
-    stream: true,
+    maxTokens: 700,
+    onToken,
   });
-  let output = '';
-  const timer = setTimeout(() => engine?.interruptGenerate(), 90000);
-  try {
-    for await (const chunk of stream) {
-      output += chunk.choices[0]?.delta?.content || '';
-      onToken(output);
-    }
-    return output;
-  } finally {
-    clearTimeout(timer);
-  }
 }

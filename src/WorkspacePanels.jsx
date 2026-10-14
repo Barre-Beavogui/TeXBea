@@ -24,7 +24,7 @@ const levelIcon = { error: AlertCircle, warning: AlertTriangle, typesetting: Inf
 const levelName = { error: 'Erreurs', warning: 'Avertissements', typesetting: 'Mise en page' };
 
 // Overleaf-style log: grouped, clickable entries, with the raw log one click away.
-export function LogPanel({ parsed, raw, onJump, onAskBea, onClose }) {
+export function LogPanel({ parsed, raw, onJump, onAskBea, onFixWithBea, onClose }) {
   const [filter, setFilter] = useState(parsed.errors.length ? 'error' : 'all'),
     [showRaw, setShowRaw] = useState(false);
   const list = filter === 'all' ? parsed.all : parsed.all.filter((e) => e.level === filter);
@@ -66,9 +66,14 @@ export function LogPanel({ parsed, raw, onJump, onAskBea, onClose }) {
                   </span>
                 )}
               </button>
+              {entry.level === 'error' && onFixWithBea && entry.file && entry.line && (
+                <button className="log-ask log-fix" onClick={() => onFixWithBea(entry)}>
+                  Corriger avec Bea
+                </button>
+              )}
               {entry.level === 'error' && onAskBea && (
                 <button className="log-ask" onClick={() => onAskBea(entry)}>
-                  Demander à Bea
+                  Expliquer
                 </button>
               )}
             </div>
@@ -289,6 +294,7 @@ const shortcuts = [
   ['Alt + clic', 'Plusieurs curseurs'],
   ['Ctrl/Cmd + Maj + [ / ]', 'Replier / déplier'],
   ['Double-clic sur le PDF', 'Aller au code'],
+  ['Ctrl/Cmd + J', 'Demander à Bea de modifier la sélection'],
 ];
 
 export function SettingsDialog({ settings, onChange, onClose }) {
@@ -337,6 +343,7 @@ export function SettingsDialog({ settings, onChange, onClose }) {
           ['closeBrackets', 'Fermer automatiquement { [ ( $'],
           ['lineWrapping', 'Retour à la ligne automatique'],
           ['autoCompile', 'Compilation automatique après une pause'],
+          ['aiAutoApply', 'Bea applique directement ses corrections (Ctrl/Cmd+Z pour annuler)'],
         ].map(([key, label]) => (
           <label key={key} className="settings-check">
             <input type="checkbox" checked={!!settings[key]} onChange={(e) => set(key, e.target.checked)} />

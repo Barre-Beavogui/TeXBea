@@ -1,4 +1,5 @@
 import { templates, safePath, validateProject, renameFile } from './project-tools.js';
+import { isCompiler } from './compilers.js';
 const key = 'texnova-lab-projects';
 const uid = () => crypto.randomUUID();
 function make(input) {
@@ -53,6 +54,10 @@ export async function demoApi(path, opt = {}) {
         if (body.main) {
           if (!(body.main in p.files) || !body.main.endsWith('.tex')) fail('Fichier principal invalide');
           p.main = body.main;
+        }
+        if (body.compiler) {
+          if (!isCompiler(body.compiler)) fail('Compilateur inconnu');
+          p.compiler = body.compiler;
         }
       } else if (method === 'DELETE') {
         if (!p.deleted) fail('Place le projet dans la corbeille avant de le supprimer');
