@@ -3,7 +3,7 @@ import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { getDocument, GlobalWorkerOptions, TextLayer } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import workerUrl from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?url';
 import './pdf-text-layer.css';
-import { Minus, Plus, Maximize2 } from 'lucide-react';
+import { Minus, Plus, Maximize2, Presentation, X } from 'lucide-react';
 import { locateInPages } from './source-navigation.js';
 GlobalWorkerOptions.workerSrc = workerUrl;
 const clamp = (n) => Math.min(4, Math.max(0.4, n));
@@ -65,6 +65,84 @@ function PdfPage({ page, scale, onSource, occurrences, marker }) {
     </div>
   );
 }
+// Full-screen slideshow of the compiled PDF: one page at a time, keyboard, click or swipe to move.
+function Presenter({ pages, start, onClose }) {
+  const [index, setIndex] = useState(start),
+    [size, setSize] = useState({ w: window.innerWidth, h: window.innerHeight });
+  const root = useRef(),
+    canvas = useRef(),
+    touch = useRef();
+  const go = (delta) => setIndex((i) => Math.min(pages.length - 1, Math.max(0, i + delta)));
+  useEffect(() => {
+    const el = root.current;
+    el.focus();
+    el.requestFullscreen?.().catch(() => {});
+    const resize = () => setSize({ w: window.innerWidth, h: window.innerHeight });
+    const leave = () => !document.fullscreenElement && onClose();
+    window.addEventListener('resize', resize);
+    document.addEventListener('fullscreenchange', leave);
+    return () => {
+      window.removeEventListener('resize', resize);
+      document.removeEventListener('fullscreenchange', leave);
+      if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+    };
+  }, []);
+  useEffect(() => {
+    const page = pages[index],
+      base = page.getViewport({ scale: 1 });
+    const scale = Math.min(size.w / base.width, size.h / base.height),
+      ratio = Math.min(window.devicePixelRatio || 1, 2);
+    const view = page.getViewport({ scale }),
+      c = canvas.current;
+    c.width = Math.floor(view.width * ratio);
+    c.height = Math.floor(view.height * ratio);
+    c.style.width = Math.floor(view.width) + 'px';
+    c.style.height = Math.floor(view.height) + 'px';
+    const task = page.render({
+      canvasContext: c.getContext('2d'),
+      viewport: view,
+      transform: [ratio, 0, 0, ratio, 0, 0],
+    });
+    task.promise.catch(() => {});
+    return () => task.cancel();
+  }, [index, size, pages]);
+  function key(e) {
+    if (['ArrowRight', 'ArrowDown', 'PageDown', ' ', 'Enter'].includes(e.key)) go(1);
+    else if (['ArrowLeft', 'ArrowUp', 'PageUp', 'Backspace'].includes(e.key)) go(-1);
+    else if (e.key === 'Home') setIndex(0);
+    else if (e.key === 'End') setIndex(pages.length - 1);
+    else if (e.key === 'Escape') onClose();
+    else return;
+    e.preventDefault();
+  }
+  return (
+    <div
+      ref={root}
+      className="presenter"
+      tabIndex={-1}
+      role="dialog"
+      aria-label="Présentation plein écran"
+      onKeyDown={key}
+      onClick={(e) => go(e.clientX < window.innerWidth / 3 ? -1 : 1)}
+      onTouchStart={(e) => (touch.current = e.touches[0].clientX)}
+      onTouchEnd={(e) => {
+        const dx = e.changedTouches[0].clientX - (touch.current ?? 0);
+        if (Math.abs(dx) > 40) go(dx < 0 ? 1 : -1);
+      }}
+    >
+      <canvas ref={canvas} />
+      <div className="presenter-bar" onClick={(e) => e.stopPropagation()}>
+        <span>
+          {index + 1} / {pages.length}
+        </span>
+        <button aria-label="Quitter la présentation" onClick={onClose}>
+          <X size={16} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function PdfViewer({ url, onSource, target, onTargetMissing }) {
   const [pages, setPages] = useState([]),
     [error, setError] = useState(''),
@@ -76,8 +154,17 @@ export default function PdfViewer({ url, onSource, target, onTargetMissing }) {
     callback = useRef(onSource),
     [counts, setCounts] = useState([]),
     [texts, setTexts] = useState([]),
-    [marker, setMarker] = useState(null);
+    [marker, setMarker] = useState(null),
+    [presenting, setPresenting] = useState(null);
   callback.current = onSource;
+  // The slideshow starts on the page shown at the top of the viewer.
+  function present() {
+    const top = scroller.current.getBoundingClientRect().top + 40;
+    const shown = [...scroller.current.querySelectorAll('.pdf-page')].findIndex(
+      (el) => el.getBoundingClientRect().bottom > top,
+    );
+    setPresenting(Math.max(0, shown));
+  }
   zoomRef.current = zoom;
   useEffect(() => {
     let disposed = false;
@@ -189,7 +276,18 @@ export default function PdfViewer({ url, onSource, target, onTargetMissing }) {
           {pages.length ? `${pages.length} page${pages.length > 1 ? 's' : ''}` : 'Chargement…'}
         </span>
         <small>Double-clic sur le texte : code</small>
+        <button
+          className="pdf-present"
+          disabled={!pages.length}
+          title="Présenter en plein écran (flèches pour avancer, Échap pour quitter)"
+          onClick={present}
+        >
+          <Presentation size={15} /> Présenter
+        </button>
       </div>
+      {presenting !== null && pages.length > 0 && (
+        <Presenter pages={pages} start={Math.min(presenting, pages.length - 1)} onClose={() => setPresenting(null)} />
+      )}
       <div className="pdf-scroll" ref={scroller} tabIndex={0} aria-label="Document PDF : défiler et zoomer">
         {error && (
           <p role="alert" className="pdf-error">

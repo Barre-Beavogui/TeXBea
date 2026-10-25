@@ -1,138 +1,5 @@
 import { isCompiler } from './compilers.js';
-export const templates = {
-  article: {
-    name: 'Article scientifique',
-    source: String.raw`\documentclass[11pt,a4paper]{article}
-\usepackage[utf8]{inputenc}
-\usepackage[T1]{fontenc}
-\usepackage[french]{babel}
-\usepackage[margin=2.5cm]{geometry}
-\usepackage{amsmath,graphicx}
-\title{Mon article}
-\author{Votre nom}
-\date{\today}
-\begin{document}
-\maketitle
-\begin{abstract}
-Présentez ici votre question et vos résultats.
-\end{abstract}
-\section{Introduction}
-Votre texte commence ici.
-\section{Méthode}
-\section{Résultats}
-\section{Conclusion}
-\end{document}`,
-  },
-  report: {
-    name: 'Rapport ou mémoire',
-    source: String.raw`\documentclass[11pt,a4paper]{report}
-\usepackage[utf8]{inputenc}
-\usepackage[T1]{fontenc}
-\usepackage[french]{babel}
-\usepackage[margin=2.5cm]{geometry}
-\usepackage{amsmath,graphicx}
-\title{Mon rapport}
-\author{Votre nom}
-\date{\today}
-\begin{document}
-\maketitle
-\tableofcontents
-\chapter{Introduction}
-Votre texte commence ici.
-\chapter{Étude}
-\chapter{Conclusion}
-\end{document}`,
-  },
-  presentation: {
-    name: 'Présentation Beamer',
-    source: String.raw`\documentclass{beamer}
-\usepackage[utf8]{inputenc}
-\usepackage[T1]{fontenc}
-\usepackage[french]{babel}
-\title{Ma présentation}
-\author{Votre nom}
-\begin{document}
-\begin{frame}
-\titlepage
-\end{frame}
-\begin{frame}{Introduction}
-\begin{itemize}
-\item La question de recherche
-\item La méthode
-\item Les résultats
-\end{itemize}
-\end{frame}
-\end{document}`,
-  },
-};
-Object.assign(templates, {
-  homework: {
-    name: 'Devoir de mathématiques',
-    source: String.raw`\documentclass[11pt,a4paper]{article}
-\usepackage[utf8]{inputenc}
-\usepackage[T1]{fontenc}
-\usepackage[french]{babel}
-\usepackage[margin=2.2cm]{geometry}
-\usepackage{amsmath,amssymb,amsthm}
-\newtheorem{exercice}{Exercice}
-\theoremstyle{remark}
-\newtheorem*{solution}{Solution}
-\title{Devoir n\textsuperscript{o}~1}
-\author{Votre nom}
-\date{\today}
-\begin{document}
-\maketitle
-\begin{exercice}
-Montrer que pour tout $n \in \mathbb{N}$, $\displaystyle\sum_{k=1}^{n} k = \frac{n(n+1)}{2}$.
-\end{exercice}
-\begin{solution}
-Par récurrence sur $n$.
-\end{solution}
-\end{document}`,
-  },
-  letter: {
-    name: 'Lettre',
-    source: String.raw`\documentclass[11pt,a4paper]{letter}
-\usepackage[utf8]{inputenc}
-\usepackage[T1]{fontenc}
-\usepackage[french]{babel}
-\usepackage[margin=2.5cm]{geometry}
-\signature{Votre nom}
-\address{Votre adresse \\ Code postal Ville}
-\begin{document}
-\begin{letter}{Destinataire \\ Adresse \\ Code postal Ville}
-\opening{Madame, Monsieur,}
-Votre texte commence ici.
-\closing{Veuillez agréer mes salutations distinguées.}
-\end{letter}
-\end{document}`,
-  },
-  cv: {
-    name: 'Curriculum vitæ',
-    source: String.raw`\documentclass[10pt,a4paper]{article}
-\usepackage[utf8]{inputenc}
-\usepackage[T1]{fontenc}
-\usepackage[french]{babel}
-\usepackage[margin=1.8cm]{geometry}
-\usepackage{xcolor,hyperref}
-\pagestyle{empty}
-\setlength{\parindent}{0pt}
-\definecolor{accent}{HTML}{DB7544}
-\newcommand{\rubrique}[1]{\vspace{10pt}{\large\bfseries\color{accent}#1}\\[-6pt]\rule{\linewidth}{0.6pt}\par}
-\newcommand{\entree}[3]{\textbf{#1} \hfill #2\\ #3\par\smallskip}
-\begin{document}
-{\Huge\bfseries Prénom Nom}\\[4pt]
-Titre du poste recherché\\
-\href{mailto:vous@exemple.fr}{vous@exemple.fr} · +33 6 00 00 00 00 · Ville
-\rubrique{Expérience}
-\entree{Poste — Entreprise}{2024 – aujourd’hui}{Missions et résultats principaux.}
-\rubrique{Formation}
-\entree{Diplôme — Établissement}{2020 – 2024}{Spécialité, mention.}
-\rubrique{Compétences}
-LaTeX, Python, gestion de projet.
-\end{document}`,
-  },
-});
+export { templates, templateGroups, templateProject, accents } from './templates.js';
 export function safePath(name) {
   return (
     typeof name === 'string' &&
@@ -255,6 +122,40 @@ export async function importProject(file) {
     files,
     assets,
   });
+}
+// Builds a project from what the user picked: one .zip archive, or loose sources and images (a .tex with its .bib and figures).
+export async function importFiles(list, name = '') {
+  const files = [...list];
+  if (!files.length) throw Error('Choisis une archive .zip ou au moins un fichier .tex.');
+  let project;
+  if (files.length === 1 && /\.(zip|tex)$/i.test(files[0].name)) project = await importProject(files[0]);
+  else {
+    if (files.some((f) => /\.zip$/i.test(f.name))) throw Error('Une archive .zip s’importe seule.');
+    const sources = {},
+      assets = {};
+    let size = 0;
+    for (const file of files) {
+      if (!safePath(file.name)) throw Error('Nom de fichier non autorisé : ' + file.name);
+      size += file.size;
+      if (/\.(tex|bib|sty|cls|txt|csv|bst|md)$/i.test(file.name)) sources[file.name] = await file.text();
+      else if (/\.(png|jpe?g|pdf)$/i.test(file.name)) assets[file.name] = await base64(file);
+      else throw Error('Format non pris en charge : ' + file.name + ' (sources texte, PNG, JPG et PDF acceptés).');
+    }
+    if (size > 8_000_000) throw Error('Fichiers trop volumineux (8 Mo maximum).');
+    const main =
+      Object.keys(sources).find((n) => n.endsWith('.tex') && /\\documentclass/.test(sources[n])) ||
+      Object.keys(sources).find((n) => n.endsWith('.tex'));
+    if (!main) throw Error('Ajoute au moins un fichier .tex.');
+    project = validateProject({ name: main.replace(/\.tex$/i, ''), main, files: sources, assets });
+  }
+  if (name) project.name = name.slice(0, 80);
+  return project;
+}
+async function base64(file) {
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  let text = '';
+  for (let i = 0; i < bytes.length; i += 8192) text += String.fromCharCode(...bytes.subarray(i, i + 8192));
+  return btoa(text);
 }
 // Renames a source or an image, keeping the main file pointer; used by the browser and the server APIs.
 export function renameFile(project, from, to) {

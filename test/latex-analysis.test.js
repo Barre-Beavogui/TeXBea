@@ -46,3 +46,30 @@ test('plan du document', () => {
     ],
   );
 });
+
+test('le plan liste les diapositives Beamer avec leur titre', () => {
+  const src = [
+    '\\begin{frame}[plain]',
+    '  \\titlepage',
+    '\\end{frame}',
+    '\\section{Résultats}',
+    '\\begin{frame}{Chiffres clés}',
+    '\\end{frame}',
+    '\\begin{frame}<2->[fragile]',
+    '  \\frametitle{Code}',
+    '\\end{frame}',
+    '\\begin{frame}',
+    'x',
+    '\\end{frame}',
+  ].join('\n');
+  assert.deepEqual(
+    documentOutline(src).map((h) => [h.level, h.title, h.line]),
+    [
+      ['frame', 'Page de titre', 1],
+      ['section', 'Résultats', 4],
+      ['frame', 'Chiffres clés', 5],
+      ['frame', 'Code', 7],
+      ['frame', 'Diapositive', 10],
+    ],
+  );
+});

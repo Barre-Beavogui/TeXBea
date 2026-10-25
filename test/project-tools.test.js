@@ -1,7 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import JSZip from 'jszip';
-import { safePath, validateProject, importProject, templates } from '../src/project-tools.js';
+import {
+  safePath,
+  validateProject,
+  importProject,
+  importFiles,
+  templates,
+  templateProject,
+} from '../src/project-tools.js';
 
 test('safePath accepte les chemins de projet usuels', () => {
   for (const p of ['main.tex', 'chapitres/intro.tex', 'figures/schéma-1.png', 'refs.bib']) assert.ok(safePath(p), p);
@@ -51,8 +58,51 @@ test('validateProject refuse un Base64 invalide ou un doublon source/image', () 
 });
 
 test('les modèles sont des projets valides', () => {
-  for (const [key, t] of Object.entries(templates))
-    assert.equal(validateProject({ files: { 'main.tex': t.source } }).main, 'main.tex', key);
+  for (const key of Object.keys(templates)) {
+    const p = validateProject(templateProject(key, { name: 'Essai' }));
+    assert.equal(p.main, 'main.tex', key);
+    assert.match(p.files['main.tex'], /\\begin\{document\}[\s\S]*\S[\s\S]*\\end\{document\}/, key);
+  }
+});
+
+test('les présentations Beamer embarquent leur thème et suivent les options', () => {
+  const modern = templateProject('beamer-modern', { name: 'Bilan 2026', aspect: '43', accent: '1f6feb' });
+  assert.match(modern.files['main.tex'], /\\documentclass\[aspectratio=43,11pt\]\{beamer\}/);
+  assert.match(modern.files['main.tex'], /\\definecolor\{accent\}\{HTML\}\{1F6FEB\}/);
+  assert.match(modern.files['main.tex'], /\\usetheme\{TeXBea\}/);
+  assert.match(modern.files['main.tex'], /\\title\{Bilan 2026\}/);
+  assert.match(modern.files['beamerthemeTeXBea.sty'], /\\ProvidesPackage\{beamerthemeTeXBea\}/);
+  const defense = templateProject('beamer-defense', {});
+  assert.ok('beamerthemeTeXBeaPro.sty' in defense.files);
+  assert.match(defense.files['main.tex'], /aspectratio=169/);
+});
+
+test('les options des modèles sont assainies', () => {
+  const p = templateProject('beamer-modern', { name: 'A & B {x} 100 %', accent: 'red}\\x', aspect: '99' });
+  assert.match(p.files['main.tex'], /\\title\{A  B x 100 \}/);
+  assert.match(p.files['main.tex'], /\{HTML\}\{DB7544\}/);
+  assert.match(p.files['main.tex'], /aspectratio=169/);
+  assert.equal(templateProject('inconnu').files['main.tex'], templates.article.source);
+});
+
+test('importFiles crée un projet à partir de fichiers séparés', async () => {
+  const p = await importFiles(
+    [
+      new File(['@book{a, title={A}}'], 'refs.bib'),
+      new File(['\\documentclass{article}\\begin{document}x\\end{document}'], 'rapport.tex'),
+      new File([new Uint8Array([137, 80, 78, 71])], 'figure.png'),
+    ],
+    '',
+  );
+  assert.equal(p.main, 'rapport.tex');
+  assert.equal(p.name, 'rapport');
+  assert.deepEqual(Object.keys(p.files).sort(), ['rapport.tex', 'refs.bib']);
+  assert.equal(p.assets['figure.png'], 'iVBORw==');
+  const named = await importFiles([new File(['\\documentclass{beamer}'], 'cours.tex')], 'Mon cours');
+  assert.equal(named.name, 'Mon cours');
+  await assert.rejects(importFiles([new File(['x'], 'a.zip'), new File(['x'], 'b.tex')]), /seule/);
+  await assert.rejects(importFiles([new File(['x'], 'notes.docx')]), /Format non pris en charge/);
+  await assert.rejects(importFiles([new File(['x'], 'refs.bib')]), /\.tex/);
 });
 
 async function zipFile(entries, name = 'projet.zip') {

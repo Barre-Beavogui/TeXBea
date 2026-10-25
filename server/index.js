@@ -1,4 +1,4 @@
-import { safePath, validateProject, templates, renameFile } from '../src/project-tools.js';
+import { safePath, validateProject, templateProject, renameFile } from '../src/project-tools.js';
 import { compilers, effectiveCompiler, isCompiler } from '../src/compilers.js';
 import express from 'express';
 import crypto from 'crypto';
@@ -125,15 +125,7 @@ app.post('/api/projects', auth, async (req, res) => {
   try {
     const d = await db();
     const input = req.body || {};
-    const data = validateProject(
-      input.files
-        ? input
-        : {
-            name: input.name,
-            main: 'main.tex',
-            files: { 'main.tex': (templates[input.template] || templates.article).source },
-          },
-    );
+    const data = validateProject(input.files ? input : templateProject(input.template, input));
     const p = { ...data, id: id(), ownerId: req.userId, updatedAt: new Date().toISOString(), history: [] };
     d.projects.push(p);
     await save(d);
@@ -315,8 +307,8 @@ app.post('/api/projects/:pid/compile', auth, async (req, res) => {
       cp.stderr.on('data', (d) => (out += d));
       const timer = setTimeout(() => {
         cp.kill('SIGKILL');
-        resolve({ code: 124, out: out + '\nCompilation interrompue après 20 s.' });
-      }, 20000);
+        resolve({ code: 124, out: out + '\nCompilation interrompue après 60 s.' });
+      }, 60000);
       cp.on('error', (e) => {
         clearTimeout(timer);
         resolve({ code: 127, out: String(e) });

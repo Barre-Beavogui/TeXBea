@@ -613,6 +613,11 @@ button.link:hover,
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.app .document-outline > button svg {
+  margin-right: 6px;
+  vertical-align: -2px;
+  color: var(--text-3);
+}
 .app .document-outline > button.on {
   border-left-color: var(--accent);
   color: var(--text);
@@ -1350,6 +1355,12 @@ button.link:hover,
   margin-left: 12px;
   color: var(--text-3);
 }
+.app .pdf-toolbar button.pdf-present {
+  width: auto;
+  margin-left: 8px;
+  padding: 0 8px;
+  color: var(--text);
+}
 .pdf-scroll {
   flex: 1;
   min-width: 0;
@@ -1621,6 +1632,487 @@ button.link:hover,
 .create-modal button.primary {
   margin-top: 16px;
   min-height: 38px;
+}
+/* ---------- Slideshow ---------- */
+
+.presenter {
+  position: fixed;
+  z-index: 80;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: #000;
+  outline: none;
+  cursor: pointer;
+}
+.presenter canvas {
+  display: block;
+  background: #fff;
+}
+.presenter-bar {
+  position: fixed;
+  right: 16px;
+  bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 4px 4px 12px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 13px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.presenter:hover .presenter-bar,
+.presenter-bar:focus-within {
+  opacity: 1;
+}
+.presenter-bar button {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+}
+
+/* ---------- New project dialog ---------- */
+
+.new-project-modal {
+  width: min(820px, 100%);
+  padding: 22px 24px 24px;
+}
+.new-project-modal form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.np-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+.np-sources {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+.modal .np-sources button {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-height: 0;
+  padding: 12px;
+  border-radius: var(--radius);
+  white-space: normal;
+  text-align: left;
+}
+.modal .np-sources button svg {
+  margin-bottom: 6px;
+  color: var(--text-3);
+}
+.np-sources b {
+  font-size: 13px;
+}
+.np-sources small {
+  color: var(--text-3);
+  font-size: 11.5px;
+  font-weight: 400;
+}
+.modal .np-sources button.on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.modal .np-sources button.on svg {
+  color: var(--accent-text);
+}
+.np-templates {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+}
+.modal .np-template {
+  position: relative;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+  border-radius: var(--radius);
+  white-space: normal;
+  text-align: left;
+}
+.modal .np-template:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  background: var(--surface);
+}
+.modal .np-template.on {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.np-template-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px 12px;
+}
+.np-template-text small {
+  color: var(--text-3);
+  font-size: 11.5px;
+  font-weight: 400;
+  line-height: 1.35;
+}
+.np-check {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 2px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+/* Template thumbnails: a page or a slide drawn with a few bars. */
+.tpl-preview {
+  position: relative;
+  display: block;
+  background: var(--surface-3);
+  border-bottom: 1px solid var(--border);
+}
+.tpl-preview i {
+  position: absolute;
+  display: block;
+  border-radius: 2px;
+}
+.tpl-page {
+  height: 116px;
+}
+.tpl-page::before {
+  content: '';
+  position: absolute;
+  top: 12px;
+  bottom: 0;
+  left: calc(50% - 46px);
+  width: 92px;
+  background: #fff;
+  box-shadow: var(--shadow-sm);
+}
+.tpl-page i {
+  left: calc(50% - 34px);
+  width: 68px;
+  height: 3px;
+  background: #d5d2cc;
+}
+.tpl-page .tpl-title {
+  top: 24px;
+  left: calc(50% - 24px);
+  width: 48px;
+  height: 5px;
+  background: #3b3f45;
+}
+.tpl-page .tpl-line:nth-of-type(2) {
+  top: 40px;
+}
+.tpl-page .tpl-line:nth-of-type(3) {
+  top: 47px;
+}
+.tpl-page .tpl-line:nth-of-type(4) {
+  top: 54px;
+}
+.tpl-page .tpl-head {
+  top: 66px;
+  width: 30px;
+  height: 4px;
+  background: var(--tpl-accent);
+}
+.tpl-page .tpl-line:nth-of-type(6) {
+  top: 76px;
+}
+.tpl-page .tpl-line:nth-of-type(7) {
+  top: 83px;
+}
+.tpl-page .short {
+  width: 44px;
+}
+.tpl-blank i,
+.tpl-letter .tpl-title {
+  opacity: 0.25;
+}
+.tpl-cv .tpl-title {
+  left: calc(50% - 34px);
+  background: var(--tpl-accent);
+}
+.tpl-slide {
+  height: 116px;
+}
+.tpl-slide::before {
+  content: '';
+  position: absolute;
+  top: 14px;
+  left: calc(50% - 80px);
+  width: 160px;
+  height: 90px;
+  background: #fff;
+  box-shadow: var(--shadow-sm);
+}
+.tpl-slide.ratio-43::before {
+  left: calc(50% - 60px);
+  width: 120px;
+}
+.tpl-slide .tpl-band,
+.tpl-slide .tpl-title,
+.tpl-slide .tpl-sub,
+.tpl-slide .tpl-rule,
+.tpl-slide .tpl-foot {
+  left: calc(50% - 68px);
+}
+.tpl-slide.ratio-43 .tpl-title,
+.tpl-slide.ratio-43 .tpl-sub,
+.tpl-slide.ratio-43 .tpl-rule {
+  left: calc(50% - 50px);
+}
+.tpl-slide .tpl-title {
+  top: 44px;
+  width: 64px;
+  height: 7px;
+  background: #1e2430;
+}
+.tpl-slide .tpl-sub {
+  top: 56px;
+  width: 44px;
+  height: 4px;
+  background: #b9bcc2;
+}
+.tpl-slide .tpl-rule {
+  top: 66px;
+  width: 24px;
+  height: 3px;
+  background: var(--tpl-accent);
+}
+.tpl-beamer-modern .tpl-band {
+  top: 14px;
+  left: auto;
+  right: calc(50% - 80px);
+  width: 30px;
+  height: 90px;
+  border-radius: 0;
+  background: var(--tpl-accent);
+  box-shadow: -5px 0 0 color-mix(in srgb, var(--tpl-accent) 35%, #fff);
+}
+.tpl-beamer-modern.ratio-43 .tpl-band {
+  right: calc(50% - 60px);
+  width: 22px;
+}
+.tpl-beamer-defense::before {
+  background: #14213d;
+}
+.tpl-beamer-defense .tpl-title {
+  background: #fff;
+}
+.tpl-beamer-defense .tpl-sub {
+  background: #8d97ad;
+}
+.tpl-beamer-defense .tpl-foot {
+  top: 99px;
+  left: calc(50% - 80px);
+  width: 160px;
+  height: 5px;
+  border-radius: 0;
+  background: var(--tpl-accent);
+}
+.tpl-beamer-defense.ratio-43 .tpl-foot {
+  left: calc(50% - 60px);
+  width: 120px;
+}
+.tpl-presentation .tpl-band {
+  top: 34px;
+  width: 136px;
+  height: 20px;
+  border-radius: 4px;
+  background: var(--tpl-accent);
+}
+.tpl-presentation.ratio-43 .tpl-band {
+  left: calc(50% - 52px);
+  width: 104px;
+}
+.tpl-presentation .tpl-title {
+  top: 41px;
+  left: calc(50% - 22px) !important;
+  width: 44px;
+  height: 5px;
+  background: #fff;
+}
+.tpl-presentation .tpl-sub {
+  top: 62px;
+  left: calc(50% - 22px) !important;
+}
+.tpl-presentation .tpl-rule {
+  display: none;
+}
+.tpl-presentation .tpl-foot {
+  top: 98px;
+  left: calc(50% - 80px);
+  width: 160px;
+  height: 4px;
+  border-radius: 0;
+  background: color-mix(in srgb, var(--tpl-accent) 70%, #000);
+}
+.tpl-presentation.ratio-43 .tpl-foot {
+  left: calc(50% - 60px);
+  width: 120px;
+}
+.np-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px 28px;
+}
+.segmented {
+  display: inline-flex;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-3);
+}
+.modal .segmented button {
+  min-height: 28px;
+  border-color: transparent;
+  background: transparent;
+  color: var(--text-2);
+}
+.modal .segmented button.on {
+  border-color: var(--border);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
+}
+.np-swatches {
+  display: flex;
+  gap: 8px;
+}
+.modal .np-swatches button {
+  width: 28px;
+  min-height: 28px;
+  padding: 0;
+  border: 2px solid var(--surface);
+  border-radius: 50%;
+  background: var(--swatch);
+  box-shadow: 0 0 0 1px var(--border);
+}
+.modal .np-swatches button:hover:not(:disabled) {
+  background: var(--swatch);
+  box-shadow: 0 0 0 1px var(--border-strong);
+}
+.modal .np-swatches button.on {
+  box-shadow: 0 0 0 2px var(--swatch);
+}
+.np-blank {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 4px 0;
+  color: var(--text-2);
+}
+.np-blank .tpl-preview {
+  flex: 0 0 150px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.np-drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 170px;
+  padding: 20px;
+  border: 1.5px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--surface-2);
+  color: var(--text-2);
+  text-align: center;
+  cursor: pointer;
+  transition:
+    border-color 0.12s,
+    background 0.12s;
+}
+.np-drop:hover,
+.np-drop.dragging {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.np-drop input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+.np-drop > svg {
+  color: var(--accent-text);
+}
+.np-drop b {
+  color: var(--text);
+}
+.np-drop small {
+  max-width: 460px;
+  color: var(--text-3);
+}
+.np-drop ul {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: min(440px, 100%);
+  list-style: none;
+}
+.np-drop li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  text-align: left;
+}
+.np-drop li small {
+  margin-left: auto;
+}
+.np-footer {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.np-name {
+  flex: 1;
+}
+.np-name input {
+  width: 100%;
+}
+.modal .np-footer button.primary {
+  min-height: 38px;
+  padding: 0 18px;
+}
+@media (max-width: 760px) {
+  .np-sources {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .np-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .np-blank {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }
 .asset-preview {
   width: min(900px, 100%);

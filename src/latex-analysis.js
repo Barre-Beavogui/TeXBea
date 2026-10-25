@@ -1,13 +1,28 @@
+// Sections and, for Beamer, frames (titled by their {…} argument or \frametitle), in source order.
 export function documentOutline(source) {
-  return [
+  const headings = [
     ...source.matchAll(/^[ \t]*\\(part|chapter|section|subsection|subsubsection)\*?(?:\[[^\]]*\])?\{([^}\n]+)\}/gm),
-  ].map((m) => ({
-    title: m[2],
-    level: m[1],
-    line: source.slice(0, m.index).split('\n').length,
-    start: m.index,
-    end: m.index + m[0].length,
-  }));
+  ].map((m) => ({ title: m[2], level: m[1], index: m.index, length: m[0].length }));
+  const frames = [...source.matchAll(/^[ \t]*\\begin\{frame\}(?:<[^>\n]*>)?(?:\[[^\]\n]*\])?(?:\{([^}\n]*)\})?/gm)].map(
+    (m) => {
+      const end = source.indexOf('\\end{frame}', m.index);
+      const body = source.slice(m.index, end < 0 ? undefined : end);
+      const title =
+        m[1]?.trim() ||
+        body.match(/\\frametitle\{([^}\n]+)\}/)?.[1] ||
+        (/\\(titlepage|maketitle)\b/.test(body) ? 'Page de titre' : /\\tableofcontents\b/.test(body) ? 'Plan' : '');
+      return { title: title || 'Diapositive', level: 'frame', index: m.index, length: m[0].length };
+    },
+  );
+  return [...headings, ...frames]
+    .sort((a, b) => a.index - b.index)
+    .map(({ title, level, index, length }) => ({
+      title,
+      level,
+      line: source.slice(0, index).split('\n').length,
+      start: index,
+      end: index + length,
+    }));
 }
 export function analyzeLatex(source, files = {}) {
   const issues = [],

@@ -106,3 +106,9 @@ test('le compilateur choisi est gardé avec le projet', async () => {
   assert.equal((await call(`/projects/${id}`)).compiler, 'xelatex');
   await assert.rejects(call(`/projects/${id}`, 'PUT', { compiler: 'context' }), /Compilateur inconnu/);
 });
+
+test('le mode navigateur crée une présentation Beamer avec son thème', async () => {
+  const p = await call('/projects', 'POST', { name: 'Soutenance', template: 'beamer-defense', accent: '0F766E' });
+  assert.deepEqual(Object.keys(p.files).sort(), ['beamerthemeTeXBeaPro.sty', 'main.tex']);
+  assert.match(p.files['main.tex'], /\{HTML\}\{0F766E\}/);
+});

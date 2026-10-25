@@ -51,6 +51,20 @@ export const aiActions = [
     task: 'Écris la suite logique du texte (un paragraphe de 3 à 5 phrases), dans la même langue et le même style. N’invente ni chiffres précis ni références bibliographiques.',
   },
   {
+    id: 'to-slides',
+    label: 'Transformer en diapositives',
+    mode: 'replace',
+    beamer: true,
+    task: 'Transforme ce passage en diapositives Beamer : une ou plusieurs \\begin{frame}{Titre court} … \\end{frame}, une idée par diapositive, au plus 5 puces brèves par liste (itemize), \\alert{…} sur les mots clés, columns si deux éléments se comparent, block pour une définition ou un résultat. Garde les formules, les chiffres et les commandes LaTeX exacts. N’invente rien.',
+  },
+  {
+    id: 'next-slide',
+    label: 'Écrire la diapositive suivante',
+    mode: 'insert',
+    beamer: true,
+    task: 'Écris la diapositive Beamer suivante, une seule \\begin{frame}{Titre court} … \\end{frame}, qui prolonge logiquement ce qui précède : 3 à 5 puces brèves, dans la même langue. N’invente ni chiffres précis ni références.',
+  },
+  {
     id: 'fix-error',
     label: 'Corriger l’erreur de compilation',
     mode: 'replace',
@@ -168,6 +182,8 @@ export function fitReplacement(original, proposal, mode = 'replace', after = '')
       proposal.trim() +
       (after && !after.startsWith('\n') ? '\n' : '')
     );
+  // A new slide goes on its own lines.
+  if (mode === 'insert' && /^\s*\\begin\{frame\}/.test(proposal)) return '\n' + proposal.trim() + '\n';
   if (mode === 'insert') return (original && !/\s$/.test(original) ? ' ' : '') + proposal;
   const lead = original.match(/^\s*/)[0],
     trail = original.match(/\s*$/)[0];

@@ -111,6 +111,20 @@ Le moteur est inclus dans `public/latex/`. Les paquets et polices manquants sont
 
 Validation : document français avec Babel, TikZ, decorations.pathmorphing, arrows.meta et calc, sauvegarde avant compilation, affichage du PDF et erreur de commande LaTeX inconnue. L’exemple `examples/machine-synchrone.tex` reprend le dessin fourni.
 
+## Nouveau projet et présentations Beamer
+
+**Nouveau projet** propose quatre points de départ : un **projet vide**, un **modèle de document** (article, rapport, devoir, lettre, CV), une **présentation Beamer** et un **import** (archive `.zip` Overleaf ou TeXBea, ou un ou plusieurs fichiers `.tex`, `.bib`, `.sty`, images). Les modèles sont définis dans `src/templates.js`, partagés par le navigateur et le serveur.
+
+Trois présentations sont fournies, au format 16:9 ou 4:3 et dans la couleur choisie :
+
+- **Présentation moderne** : thème `beamerthemeTeXBea.sty` (barre de progression, pages de section, chiffres clés avec `\chiffre{87 %}{légende}`, schémas TikZ) ;
+- **Soutenance** : thème `beamerthemeTeXBeaPro.sty` (bandeaux, pied de page auteur/titre/numéro, page de titre sombre, annexes non numérotées) ;
+- **Beamer classique** : thème Madrid aux couleurs choisies.
+
+Les thèmes sont des fichiers du projet, modifiables, qui ne dépendent que de Beamer, TikZ et xcolor : ils compilent avec pdfLaTeX dans le navigateur comme avec latexmk. Dans un document Beamer, l’éditeur ajoute le menu **Diapositive** (diapositive, deux colonnes, image, blocs, apparitions, `\pause`), le plan liste les diapositives, Bea sait **transformer un passage en diapositives** et **écrire la diapositive suivante**, et **Présenter** (au-dessus du PDF) lance le diaporama plein écran (flèches, clic ou balayage, Échap pour quitter).
+
+Validation : les trois présentations compilent avec le moteur SwiftLaTeX du navigateur (sur un miroir local construit depuis TeX Live) et avec latexmk, sans boîte trop large ; diapositives `fragile` (verbatim) et apparitions `\only`/`\pause` vérifiées.
+
 ## Navigation et petits écrans
 
 Sur téléphone, les onglets **Code** et **PDF** donnent accès aux deux panneaux ; **Fichiers** ouvre la liste des sources. Sur ordinateur, l’éditeur et le PDF restent côte à côte. Chaque panneau défile indépendamment, horizontalement et verticalement, avec deux doigts au pavé tactile. Le pincement au-dessus du PDF ajuste son zoom ; le bouton d’ajustement restaure la largeur disponible.

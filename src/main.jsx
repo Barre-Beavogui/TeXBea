@@ -1,6 +1,7 @@
-import { exportProject, importProject } from './project-tools.js';
+import { exportProject, importFiles } from './project-tools.js';
+import NewProjectDialog from './NewProjectDialog.jsx';
 import { documentOutline } from './latex-analysis.js';
-import ProjectLibrary, { Brand, ProjectDialog } from './ProjectLibrary.jsx';
+import ProjectLibrary, { Brand } from './ProjectLibrary.jsx';
 import { findSourceLocation, searchablePhrases } from './source-navigation.js';
 import { compileInBrowser, cancelCompile } from './browser-compiler.js';
 import { compilers, effectiveCompiler, magicProgram, needsUnicodeEngine } from './compilers.js';
@@ -40,6 +41,7 @@ import {
   CaseSensitive,
   ScrollText,
   Image as ImageIcon,
+  Presentation,
 } from 'lucide-react';
 import './style.css';
 const AssistantPanel = lazy(() => import('./AssistantPanel.jsx'));
@@ -116,6 +118,7 @@ function Auth({ onAuth }) {
     </div>
   );
 }
+const outlineDepth = { part: 0, chapter: 1, section: 2, subsection: 3, subsubsection: 4, frame: 3 };
 // Offset range of a 1-based line, to place the cursor from a log entry or the outline.
 function lineRange(text, line) {
   const lines = text.split('\n');
@@ -183,6 +186,8 @@ function App() {
   const parsedLog = useMemo(() => parseLatexLog(log, files, project?.main), [log, files, project?.main]);
   const activeDiagnostics = useMemo(() => parsedLog.all.filter((e) => e.file === active), [parsedLog, active]);
   const outline = useMemo(() => documentOutline(code), [code]);
+  const mainSource = active === project?.main ? code : project?.files?.[project?.main];
+  const isBeamer = /\\documentclass\s*(?:\[[^\]]*\])?\s*\{beamer\}/.test(mainSource || '');
   const notify = (s) => {
     setToast(s);
     setTimeout(() => setToast(''), 1800);
@@ -424,12 +429,13 @@ function App() {
       notify(e.message);
     }
   }
-  async function newProject() {
+  // `source` opens the dialog on a tab ('import' from the library's import button); a click event means the default.
+  async function newProject(source) {
     if (dirty && !(await saveFile(true))) return;
-    setCreateOpen(true);
+    setCreateOpen(typeof source === 'string' ? source : 'blank');
   }
-  async function createProject(name, template) {
-    const p = await api('/projects', { method: 'POST', body: JSON.stringify({ name, template }) });
+  async function createProject(options) {
+    const p = await api('/projects', { method: 'POST', body: JSON.stringify(options) });
     await loadProjects(p.id);
     setLibrary(false);
   }
@@ -472,16 +478,12 @@ function App() {
       notify(e.message);
     }
   }
-  async function importArchive(file) {
-    try {
-      const imported = await importProject(file);
-      const p = await api('/projects', { method: 'POST', body: JSON.stringify(imported) });
-      await loadProjects(p.id);
-      setLibrary(false);
-      notify('Projet importé, originaux conservés');
-    } catch (e) {
-      notify(e.message);
-    }
+  async function importArchive(files, name) {
+    const imported = await importFiles(files, name);
+    const p = await api('/projects', { method: 'POST', body: JSON.stringify(imported) });
+    await loadProjects(p.id);
+    setLibrary(false);
+    notify('Projet importé, originaux conservés');
   }
   async function uploadFiles(input) {
     try {
@@ -726,10 +728,16 @@ function App() {
           onOpen={openFromLibrary}
           onNew={newProject}
           onAction={projectAction}
-          onImport={importArchive}
           mode={DEMO}
         />
-        {createOpen && <ProjectDialog onClose={() => setCreateOpen(false)} onCreate={createProject} />}{' '}
+        {createOpen && (
+          <NewProjectDialog
+            initialSource={createOpen}
+            onClose={() => setCreateOpen(false)}
+            onCreate={createProject}
+            onImport={importArchive}
+          />
+        )}
         {toast && (
           <div className="toast" role="status">
             {toast}
@@ -910,16 +918,18 @@ function App() {
             <summary>
               Plan du document <span className="count">{outline.length}</span>
             </summary>
-            {!outline.length && <p className="side-empty">Ajoute des \section pour voir le plan.</p>}
+            {!outline.length && (
+              <p className="side-empty">Ajoute des \section (ou des frame en Beamer) pour voir le plan.</p>
+            )}
             {outline.map((h, i) => (
               <button
                 key={i}
                 className={h.line <= cursor.line && (outline[i + 1]?.line ?? Infinity) > cursor.line ? 'on' : ''}
                 onClick={() => jumpTo(h)}
-                style={{
-                  paddingLeft: 10 + 12 * ['part', 'chapter', 'section', 'subsection', 'subsubsection'].indexOf(h.level),
-                }}
+                style={{ paddingLeft: 10 + 12 * outlineDepth[h.level] }}
+                data-level={h.level}
               >
+                {h.level === 'frame' && <Presentation size={12} aria-label="Diapositive" />}
                 {h.title}
               </button>
             ))}
@@ -999,7 +1009,7 @@ function App() {
               </button>
             </div>
           </div>
-          <EditorToolbar editor={editorRef} onBea={startBea} onAssistant={openAssistant} />
+          <EditorToolbar editor={editorRef} onBea={startBea} onAssistant={openAssistant} beamer={isBeamer} />
           <input
             ref={photoRef}
             hidden
@@ -1210,7 +1220,14 @@ function App() {
           </div>
         </div>
       )}
-      {createOpen && <ProjectDialog onClose={() => setCreateOpen(false)} onCreate={createProject} />}
+      {createOpen && (
+        <NewProjectDialog
+          initialSource={createOpen}
+          onClose={() => setCreateOpen(false)}
+          onCreate={createProject}
+          onImport={importArchive}
+        />
+      )}
       {showHistory && (
         <HistoryPanel
           history={project.history}

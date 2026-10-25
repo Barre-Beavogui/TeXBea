@@ -49,6 +49,10 @@ test('la correction garde les espaces autour du passage', () => {
   assert.equal(fitReplacement('\n  Texte fautif.\n\n', 'Texte correct.'), '\n  Texte correct.\n\n');
   assert.equal(fitReplacement('fin', 'suite', 'insert'), ' suite');
   assert.equal(fitReplacement('fin ', 'suite', 'insert'), 'suite');
+  assert.equal(
+    fitReplacement('', '\\begin{frame}{Suite}\n\\end{frame}\n', 'insert'),
+    '\n\\begin{frame}{Suite}\n\\end{frame}\n',
+  );
 });
 
 test('consignes : passage, erreur et consigne libre', () => {

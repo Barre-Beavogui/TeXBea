@@ -1,5 +1,4 @@
-import { templates } from './project-tools.js';
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Plus,
   Search,
@@ -31,65 +30,8 @@ export function Brand() {
     </div>
   );
 }
-export function ProjectDialog({ onClose, onCreate }) {
-  const [name, setName] = useState(''),
-    [template, setTemplate] = useState('article'),
-    [waiting, setWaiting] = useState(false),
-    [error, setError] = useState('');
-  async function submit(e) {
-    e.preventDefault();
-    setWaiting(true);
-    try {
-      await onCreate(name.trim(), template);
-      onClose();
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setWaiting(false);
-    }
-  }
-  return (
-    <div className="modalBack">
-      <section className="modal create-modal" role="dialog" aria-modal="true" aria-labelledby="create-title">
-        <div className="modalHead">
-          <h2 id="create-title">Un nouveau projet</h2>
-          <button onClick={onClose} aria-label="Fermer">
-            ×
-          </button>
-        </div>
-        <p>Choisis une structure de départ pour ton document.</p>
-        <form onSubmit={submit}>
-          <label htmlFor="project-name">Nom du projet</label>
-          <input
-            id="project-name"
-            autoFocus
-            required
-            maxLength={80}
-            placeholder="Rapport, mémoire, article…"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
-          <label htmlFor="project-template">Modèle de document</label>
-          <select id="project-template" value={template} onChange={(e) => setTemplate(e.target.value)}>
-            {Object.entries(templates).map(([id, t]) => (
-              <option key={id} value={id}>
-                {t.name}
-              </option>
-            ))}
-          </select>
-          {error && <p className="error">{error}</p>}
-          <button className="primary" disabled={waiting || !name.trim()}>
-            {waiting ? 'Création…' : 'Créer le projet'}
-          </button>
-        </form>
-      </section>
-    </div>
-  );
-}
-export default function ProjectLibrary({ projects, onOpen, onNew, onAction, onImport, mode }) {
-  const [trash, setTrash] = useState(false),
-    [importing, setImporting] = useState(false),
-    importRef = useRef();
+export default function ProjectLibrary({ projects, onOpen, onNew, onAction, mode }) {
+  const [trash, setTrash] = useState(false);
   const [query, setQuery] = useState(''),
     [sort, setSort] = useState('recent');
   const list = useMemo(
@@ -142,27 +84,10 @@ export default function ProjectLibrary({ projects, onOpen, onNew, onAction, onIm
                   Corbeille ({projects.filter((p) => p.deleted).length})
                 </button>
               </div>
-              <button disabled={importing} onClick={() => importRef.current.click()}>
+              <button onClick={() => onNew('import')}>
                 <Upload size={16} />
-                {importing ? 'Import…' : 'Importer .tex / ZIP'}
+                Importer .zip / .tex
               </button>
-              <input
-                ref={importRef}
-                hidden
-                type="file"
-                accept=".tex,.zip"
-                onChange={async (e) => {
-                  const file = e.target.files[0];
-                  e.target.value = '';
-                  if (!file) return;
-                  setImporting(true);
-                  try {
-                    await onImport(file);
-                  } finally {
-                    setImporting(false);
-                  }
-                }}
-              />
             </div>
             <div className="project-controls">
               <label className="library-search">

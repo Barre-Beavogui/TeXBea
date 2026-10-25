@@ -1,17 +1,9 @@
-import { templates, safePath, validateProject, renameFile } from './project-tools.js';
+import { templateProject, safePath, validateProject, renameFile } from './project-tools.js';
 import { isCompiler } from './compilers.js';
 const key = 'texnova-lab-projects';
 const uid = () => crypto.randomUUID();
 function make(input) {
-  const data = validateProject(
-    input.files
-      ? input
-      : {
-          name: input.name,
-          main: 'main.tex',
-          files: { 'main.tex': (templates[input.template] || templates.article).source },
-        },
-  );
+  const data = validateProject(input.files ? input : templateProject(input.template, input));
   return { ...data, id: uid(), updatedAt: new Date().toISOString(), history: [] };
 }
 export async function demoApi(path, opt = {}) {

@@ -15,6 +15,7 @@ import {
   Sparkles,
   ChevronDown,
   Camera,
+  Presentation,
 } from 'lucide-react';
 import { aiActions } from './ai-actions.js';
 
@@ -245,12 +246,12 @@ function SymbolPalette({ onInsert, onClose }) {
 }
 
 // Formatting toolbar, like Overleaf's editor toolbar: everything inserts plain LaTeX at the cursor.
-function BeaMenu({ onPick, onAssistant }) {
+function BeaMenu({ onPick, onAssistant, beamer }) {
   return (
     <div className="toolbar-popover bea-menu" role="menu" aria-label="Actions de Bea">
       <p>Sur la sélection, ou sur le paragraphe du curseur</p>
       {aiActions
-        .filter((a) => !a.hidden)
+        .filter((a) => !a.hidden && (beamer || !a.beamer))
         .map((a) => (
           <button key={a.id} role="menuitem" onClick={() => onPick(a.id)}>
             {a.label}
@@ -269,7 +270,29 @@ function BeaMenu({ onPick, onAssistant }) {
   );
 }
 
-export default function EditorToolbar({ editor, onBea, onAssistant }) {
+// Beamer building blocks, shown when the main file is a presentation.
+const slideSnippets = [
+  [
+    'Nouvelle diapositive',
+    '\\begin{frame}{${Titre}}\n\t\\begin{itemize}\n\t\t\\item ${}\n\t\\end{itemize}\n\\end{frame}',
+  ],
+  [
+    'Diapositive à deux colonnes',
+    '\\begin{frame}{${Titre}}\n\t\\begin{columns}[T]\n\t\t\\begin{column}{0.48\\textwidth}\n\t\t\t${}\n\t\t\\end{column}\n\t\t\\begin{column}{0.48\\textwidth}\n\t\t\t\n\t\t\\end{column}\n\t\\end{columns}\n\\end{frame}',
+  ],
+  [
+    'Diapositive avec image',
+    '\\begin{frame}{${Titre}}\n\t\\centering\n\t\\includegraphics[width=0.8\\linewidth,height=0.7\\textheight,keepaspectratio]{${fichier}}\n\\end{frame}',
+  ],
+  ['Liste qui apparaît point par point', '\\begin{itemize}[<+->]\n\t\\item ${}\n\t\\item \n\\end{itemize}'],
+  ['Bloc', '\\begin{block}{${Titre}}\n\t${}\n\\end{block}'],
+  ['Bloc d’alerte', '\\begin{alertblock}{${Attention}}\n\t${}\n\\end{alertblock}'],
+  ['Bloc exemple', '\\begin{exampleblock}{${Exemple}}\n\t${}\n\\end{exampleblock}'],
+  ['Pause (la suite au clic)', '\\pause\n'],
+  ['Mot mis en évidence', '\\alert{${}}'],
+];
+
+export default function EditorToolbar({ editor, onBea, onAssistant, beamer = false }) {
   const [open, setOpen] = useState(null);
   const ed = () => editor.current;
   const insert = (s) => ed()?.insert(s);
@@ -296,6 +319,21 @@ export default function EditorToolbar({ editor, onBea, onAssistant }) {
               onClick={() => onBea('photo')}
             >
               <Camera size={15} />
+            </button>
+            <span className="toolbar-sep" />
+          </>
+        )}
+        {beamer && (
+          <>
+            <button
+              title="Diapositives, colonnes, blocs et apparitions Beamer"
+              aria-label="Éléments Beamer"
+              aria-expanded={open === 'slides'}
+              onClick={() => toggle('slides')}
+            >
+              <Presentation size={15} />
+              Diapositive
+              <ChevronDown size={13} />
             </button>
             <span className="toolbar-sep" />
           </>
@@ -388,6 +426,7 @@ export default function EditorToolbar({ editor, onBea, onAssistant }) {
       </div>
       {open === 'bea' && (
         <BeaMenu
+          beamer={beamer}
           onAssistant={onAssistant}
           onPick={(id) => {
             setOpen(null);
@@ -395,6 +434,23 @@ export default function EditorToolbar({ editor, onBea, onAssistant }) {
             else onAssistant();
           }}
         />
+      )}
+      {open === 'slides' && (
+        <div className="toolbar-popover bea-menu" role="menu" aria-label="Éléments Beamer">
+          <p>Insère au curseur</p>
+          {slideSnippets.map(([label, text]) => (
+            <button
+              key={label}
+              role="menuitem"
+              onClick={() => {
+                setOpen(null);
+                insert(text);
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       )}
       {open === 'symbols' && <SymbolPalette onInsert={insert} onClose={() => setOpen(null)} />}
       {open === 'table' && (
