@@ -1,4 +1,4 @@
-import { exportProject, importFiles } from './project-tools.js';
+import { exportProject, importFiles, checkFileSize, fileToBase64, formatSize } from './project-tools.js';
 import NewProjectDialog from './NewProjectDialog.jsx';
 import { documentOutline } from './latex-analysis.js';
 import ProjectLibrary, { Brand } from './ProjectLibrary.jsx';
@@ -479,6 +479,8 @@ function App() {
     }
   }
   async function importArchive(files, name) {
+    const total = [...files].reduce((n, f) => n + f.size, 0);
+    if (total > 5_000_000) notify(`Import de ${formatSize(total)} en cours…`);
     const imported = await importFiles(files, name);
     const p = await api('/projects', { method: 'POST', body: JSON.stringify(imported) });
     await loadProjects(p.id);
@@ -489,15 +491,10 @@ function App() {
     try {
       if (dirty && !(await saveFile(true))) return;
       for (const file of input) {
-        if (file.size > 1_500_000) throw Error('Fichier trop volumineux : ' + file.name);
+        checkFileSize(file);
         const binary = /\.(png|jpe?g|pdf)$/i.test(file.name);
-        let content;
-        if (binary) {
-          const bytes = new Uint8Array(await file.arrayBuffer());
-          let text = '';
-          for (let i = 0; i < bytes.length; i += 8192) text += String.fromCharCode(...bytes.subarray(i, i + 8192));
-          content = btoa(text);
-        } else content = await file.text();
+        if (file.size > 5_000_000) notify(`Ajout de ${file.name} (${formatSize(file.size)})…`);
+        const content = binary ? await fileToBase64(file) : await file.text();
         const p = await api(`/projects/${project.id}/files`, {
           method: 'POST',
           body: JSON.stringify({ name: file.name, content, binary }),

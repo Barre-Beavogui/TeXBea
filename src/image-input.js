@@ -1,7 +1,8 @@
 // Turns a photo (camera, file, paste or drop) into a JPEG data URL small enough for the vision model.
 export async function prepareImage(file, maxSide = 1344) {
   if (!file?.type?.startsWith('image/')) throw Error('Choisis une image (photo, capture d’écran…).');
-  if (file.size > 20_000_000) throw Error('Image trop lourde (20 Mo maximum).');
+  // Photos are shrunk to maxSide before reaching the model, so only decoding sets the limit.
+  if (file.size > 100_000_000) throw Error('Image trop lourde (100 Mo maximum).');
   const bitmap = await createImageBitmap(file);
   const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
   const canvas = document.createElement('canvas');

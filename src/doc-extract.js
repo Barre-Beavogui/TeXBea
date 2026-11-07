@@ -5,7 +5,7 @@ export const acceptedFiles = '.tex,.txt,.md,.bib,.csv,.sty,.cls,.json,.pdf,.docx
 const MAX_TEXT = 60000;
 
 export async function readAttachment(file) {
-  if (file.size > 25_000_000) throw Error(`${file.name} : fichier trop lourd (25 Mo maximum).`);
+  if (file.size > 300_000_000) throw Error(`${file.name} : fichier trop lourd (300 Mo maximum).`);
   const name = file.name || 'image collée';
   if (file.type.startsWith('image/')) {
     const [image, thumb] = await Promise.all([prepareImage(file), prepareImage(file, 240)]);
@@ -15,7 +15,7 @@ export async function readAttachment(file) {
   if (lower.endsWith('.pdf')) return { name, kind: 'pdf', text: (await pdfText(file)).slice(0, MAX_TEXT) };
   if (lower.endsWith('.docx')) return { name, kind: 'docx', text: (await docxText(file)).slice(0, MAX_TEXT) };
   if (/\.(tex|txt|md|bib|csv|sty|cls|json)$/.test(lower))
-    return { name, kind: 'text', text: (await file.text()).slice(0, MAX_TEXT) };
+    return { name, kind: 'text', text: (await file.slice(0, MAX_TEXT * 4).text()).slice(0, MAX_TEXT) };
   throw Error(`${name} : format non pris en charge (images, PDF, Word .docx, .tex, .txt, .md, .bib, .csv).`);
 }
 
@@ -25,9 +25,13 @@ async function pdfText(file) {
     GlobalWorkerOptions.workerSrc = (await import('pdfjs-dist/legacy/build/pdf.worker.min.mjs?url')).default;
   const pdf = await getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
   const pages = [];
-  for (let n = 1; n <= Math.min(pdf.numPages, 40); n++) {
+  // Large PDF: read pages until Bea has as much text as she can use, however many pages there are.
+  let length = 0;
+  for (let n = 1; n <= pdf.numPages && length < MAX_TEXT; n++) {
     const content = await (await pdf.getPage(n)).getTextContent();
-    pages.push(content.items.map((i) => i.str + (i.hasEOL ? '\n' : ' ')).join(''));
+    const text = content.items.map((i) => i.str + (i.hasEOL ? '\n' : ' ')).join('');
+    pages.push(text);
+    length += text.length;
   }
   const text = pages.join('\n\n').trim();
   if (!text)

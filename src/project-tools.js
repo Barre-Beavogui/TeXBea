@@ -1,5 +1,19 @@
 import { isCompiler } from './compilers.js';
 export { templates, templateGroups, templateProject, accents } from './templates.js';
+// Size limits, shared by the browser and the server. Sizes count characters: images are stored as Base64 (4/3 of the bytes).
+export const MAX_PROJECT_SIZE = 250_000_000;
+export const MAX_FILE_SIZE = 100_000_000;
+export const MAX_FILES = 2000;
+export const MAX_ARCHIVE_SIZE = 250_000_000;
+export function formatSize(n) {
+  if (n < 1000) return n + ' o';
+  if (n < 1_000_000) return Math.round(n / 1000) + ' Ko';
+  return (n / 1_000_000).toFixed(n < 10_000_000 ? 1 : 0).replace('.', ',') + ' Mo';
+}
+// Linear check: a grouped regex overflows the stack on images of a few megabytes.
+export function isBase64(s) {
+  return typeof s === 'string' && s.length % 4 === 0 && /^[A-Za-z0-9+/]*={0,2}$/.test(s);
+}
 export function safePath(name) {
   return (
     typeof name === 'string' &&
@@ -25,18 +39,14 @@ export function validateProject(input) {
     files[name] = content;
   }
   for (const [name, content] of Object.entries(input.assets || {})) {
-    if (
-      !safePath(name) ||
-      typeof content !== 'string' ||
-      name in files ||
-      !/^([A-Za-z0-9+/]{4})*([A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(content)
-    )
-      throw Error('Image invalide : ' + name);
+    if (!safePath(name) || name in files || !isBase64(content)) throw Error('Image invalide : ' + name);
     size += content.length;
     assets[name] = content;
   }
-  if (Object.keys(files).length + Object.keys(assets).length > 200 || size > 3_000_000)
-    throw Error('Projet trop volumineux : limite de 3 Mo et 200 fichiers pour le stockage navigateur.');
+  if (Object.keys(files).length + Object.keys(assets).length > MAX_FILES)
+    throw Error(`Projet trop volumineux : ${MAX_FILES} fichiers maximum.`);
+  if (size > MAX_PROJECT_SIZE)
+    throw Error(`Projet trop volumineux : ${formatSize(size)} pour ${formatSize(MAX_PROJECT_SIZE)} maximum.`);
   const main =
     input.main ||
     Object.keys(files).find((n) => n.endsWith('main.tex')) ||
@@ -70,7 +80,8 @@ export async function exportProject(project) {
   );
 }
 export async function importProject(file) {
-  if (file.size > 8_000_000) throw Error('Archive trop volumineuse (8 Mo maximum).');
+  if (file.size > MAX_ARCHIVE_SIZE)
+    throw Error(`Archive trop volumineuse : ${formatSize(file.size)} pour ${formatSize(MAX_ARCHIVE_SIZE)} maximum.`);
   if (file.name.toLowerCase().endsWith('.tex'))
     return validateProject({
       name: file.name.replace(/\.tex$/i, ''),
@@ -90,7 +101,8 @@ export async function importProject(file) {
   );
   const prefix = useful.length && useful[0].name.includes('/') ? useful[0].name.split('/')[0] + '/' : '';
   const strip = prefix && useful.every((e) => e.name.startsWith(prefix)) ? prefix : '';
-  if (entries.length > 1000 || useful.length > 200) throw Error('Archive trop grande (200 fichiers maximum).');
+  if (entries.length > MAX_FILES * 5 || useful.length > MAX_FILES)
+    throw Error(`Archive trop grande (${MAX_FILES} fichiers maximum).`);
   for (const entry of entries) {
     const original = entry.name;
     const unstrip = (n) => (strip && n.startsWith(strip) ? n.slice(strip.length) : n);
@@ -104,7 +116,8 @@ export async function importProject(file) {
       continue;
     }
     if (!safePath(name)) throw Error('Chemin non autorisé : ' + name);
-    if ((entry._data?.uncompressedSize || 0) > 3_000_000) throw Error('Fichier trop volumineux : ' + name);
+    if ((entry._data?.uncompressedSize || 0) > MAX_FILE_SIZE)
+      throw Error(`Fichier trop volumineux : ${name} (${formatSize(MAX_FILE_SIZE)} maximum par fichier).`);
     if (/\.(tex|bib|sty|cls|txt|csv|bst|md)$/i.test(name)) {
       files[name] = await entry.async('string');
       size += files[name].length;
@@ -113,7 +126,8 @@ export async function importProject(file) {
       size += assets[name].length;
     } else if (/(?:^|\/)\.DS_Store$/.test(name)) continue;
     else throw Error('Format non pris en charge : ' + name + ' (sources texte, PNG, JPG et PDF acceptés).');
-    if (size > 3_000_000) throw Error('Projet trop volumineux pour le stockage navigateur.');
+    if (size > MAX_PROJECT_SIZE)
+      throw Error(`Projet trop volumineux : plus de ${formatSize(MAX_PROJECT_SIZE)} une fois décompressé.`);
   }
   return validateProject({
     name: metadata.name || file.name.replace(/\.zip$/i, ''),
@@ -136,12 +150,14 @@ export async function importFiles(list, name = '') {
     let size = 0;
     for (const file of files) {
       if (!safePath(file.name)) throw Error('Nom de fichier non autorisé : ' + file.name);
+      checkFileSize(file);
       size += file.size;
+      if (size > MAX_ARCHIVE_SIZE)
+        throw Error(`Fichiers trop volumineux : ${formatSize(MAX_ARCHIVE_SIZE)} maximum au total.`);
       if (/\.(tex|bib|sty|cls|txt|csv|bst|md)$/i.test(file.name)) sources[file.name] = await file.text();
-      else if (/\.(png|jpe?g|pdf)$/i.test(file.name)) assets[file.name] = await base64(file);
+      else if (/\.(png|jpe?g|pdf)$/i.test(file.name)) assets[file.name] = await fileToBase64(file);
       else throw Error('Format non pris en charge : ' + file.name + ' (sources texte, PNG, JPG et PDF acceptés).');
     }
-    if (size > 8_000_000) throw Error('Fichiers trop volumineux (8 Mo maximum).');
     const main =
       Object.keys(sources).find((n) => n.endsWith('.tex') && /\\documentclass/.test(sources[n])) ||
       Object.keys(sources).find((n) => n.endsWith('.tex'));
@@ -151,8 +167,25 @@ export async function importFiles(list, name = '') {
   if (name) project.name = name.slice(0, 80);
   return project;
 }
-async function base64(file) {
+export function checkFileSize(file) {
+  // Base64 makes an image 4/3 bigger once stored.
+  const stored = /\.(png|jpe?g|pdf)$/i.test(file.name) ? Math.ceil(file.size / 3) * 4 : file.size;
+  if (stored > MAX_FILE_SIZE)
+    throw Error(
+      `Fichier trop volumineux : ${file.name} (${formatSize(file.size)}, ${formatSize((MAX_FILE_SIZE / 4) * 3)} maximum par fichier).`,
+    );
+}
+// Base64 of a file without building a giant intermediate string: FileReader in the browser, Buffer in Node.
+export async function fileToBase64(file) {
+  if (typeof FileReader !== 'undefined')
+    return await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result).slice(String(reader.result).indexOf(',') + 1));
+      reader.onerror = () => reject(Error('Lecture impossible : ' + file.name));
+      reader.readAsDataURL(file);
+    });
   const bytes = new Uint8Array(await file.arrayBuffer());
+  if (typeof Buffer !== 'undefined') return Buffer.from(bytes).toString('base64');
   let text = '';
   for (let i = 0; i < bytes.length; i += 8192) text += String.fromCharCode(...bytes.subarray(i, i + 8192));
   return btoa(text);

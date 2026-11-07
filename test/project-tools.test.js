@@ -8,6 +8,12 @@ import {
   importFiles,
   templates,
   templateProject,
+  isBase64,
+  checkFileSize,
+  formatSize,
+  MAX_FILES,
+  MAX_PROJECT_SIZE,
+  MAX_FILE_SIZE,
 } from '../src/project-tools.js';
 
 test('safePath accepte les chemins de projet usuels', () => {
@@ -38,9 +44,9 @@ test('validateProject trouve le fichier principal', () => {
 
 test('validateProject applique les limites de taille et de nombre', () => {
   const files = { 'main.tex': 'x' };
-  for (let i = 0; i < 200; i++) files[`f${i}.tex`] = '';
+  for (let i = 0; i < MAX_FILES; i++) files[`f${i}.tex`] = '';
   assert.throws(() => validateProject({ files }), /trop volumineux/);
-  assert.throws(() => validateProject({ files: { 'main.tex': 'x'.repeat(3_000_001) } }), /trop volumineux/);
+  assert.throws(() => validateProject({ files: { 'main.tex': 'x'.repeat(MAX_PROJECT_SIZE + 1) } }), /trop volumineux/);
 });
 
 test('validateProject refuse un Base64 invalide ou un doublon source/image', () => {
@@ -143,4 +149,33 @@ test('le compilateur passe par l’import et l’export', async () => {
   const files = { 'main.tex': '\\documentclass{article}' };
   assert.equal(validateProject({ main: 'main.tex', files, compiler: 'lualatex' }).compiler, 'lualatex');
   assert.equal(validateProject({ main: 'main.tex', files, compiler: 'rm -rf' }).compiler, undefined);
+});
+
+test('fichiers volumineux : une image de 60 Mo passe la validation sans saturer la pile', () => {
+  const image = 'QUJD'.repeat(20_000_000);
+  const p = validateProject({ files: { 'main.tex': '\\documentclass{article}' }, assets: { 'fig.png': image } });
+  assert.equal(p.assets['fig.png'].length, 80_000_000);
+  assert.equal(isBase64('AB=='), true);
+  assert.equal(isBase64('AB=C'), false);
+  assert.equal(isBase64('ABC'), false);
+});
+
+test('import d’une archive de 30 Mo avec une grande image', async () => {
+  const zip = new JSZip();
+  zip.file('these/main.tex', '\\documentclass{article}\\begin{document}\\includegraphics{fig}\\end{document}');
+  zip.file('these/fig.png', new Uint8Array(30_000_000).fill(7));
+  const blob = new Blob([await zip.generateAsync({ type: 'uint8array', compression: 'STORE' })]);
+  const p = await importProject(Object.assign(blob, { name: 'these.zip' }));
+  assert.equal(p.main, 'main.tex');
+  assert.equal(Buffer.from(p.assets['fig.png'], 'base64').length, 30_000_000);
+});
+
+test('fichiers séparés : taille vérifiée par fichier, Base64 sans erreur', async () => {
+  const tex = new File(['\\documentclass{article}'], 'main.tex');
+  const png = new File([new Uint8Array(12_000_000).fill(1)], 'photo.png');
+  const p = await importFiles([tex, png]);
+  assert.equal(Buffer.from(p.assets['photo.png'], 'base64').length, 12_000_000);
+  assert.throws(() => checkFileSize({ name: 'x.png', size: MAX_FILE_SIZE }), /trop volumineux/);
+  assert.doesNotThrow(() => checkFileSize({ name: 'x.png', size: 70_000_000 }));
+  assert.equal(formatSize(250_000_000), '250 Mo');
 });

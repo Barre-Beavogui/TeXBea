@@ -1,15 +1,58 @@
-import { templateProject, safePath, validateProject, renameFile } from './project-tools.js';
+import {
+  templateProject,
+  safePath,
+  validateProject,
+  renameFile,
+  MAX_FILE_SIZE,
+  MAX_PROJECT_SIZE,
+  formatSize,
+} from './project-tools.js';
 import { isCompiler } from './compilers.js';
-const key = 'texnova-lab-projects';
+import { defaultStore, storageFull } from './browser-store.js';
+let store;
+// Lets the tests choose where projects live.
+export function useStore(s) {
+  store = s;
+}
 const uid = () => crypto.randomUUID();
 function make(input) {
   const data = validateProject(input.files ? input : templateProject(input.template, input));
   return { ...data, id: uid(), updatedAt: new Date().toISOString(), history: [] };
 }
+// Copy handed to the interface: strings are immutable, so sharing them is safe and avoids copying large images.
+// Versions keep their images on this side only (the history panel compares sources).
+function publicCopy(p) {
+  return {
+    ...p,
+    files: { ...p.files },
+    assets: { ...(p.assets || {}) },
+    history: (p.history || []).map(publicVersion),
+  };
+}
+function publicVersion(s) {
+  return { ...s, files: { ...s.files }, assets: Object.fromEntries(Object.keys(s.assets || {}).map((n) => [n, ''])) };
+}
+const projectSize = (p) =>
+  [...Object.values(p.files), ...Object.values(p.assets || {})].reduce((n, c) => n + c.length, 0);
 export async function demoApi(path, opt = {}) {
-  let db;
+  store ||= defaultStore();
   try {
-    db = JSON.parse(localStorage.getItem(key) || 'null') || [make({ name: 'Mon premier projet' })];
+    return await run(path, opt);
+  } catch (e) {
+    // The projects in memory may hold a half-made change: read them again from the browser storage.
+    store.reset();
+    throw e;
+  }
+}
+async function run(path, opt) {
+  let db,
+    created = false;
+  try {
+    db = await store.load();
+    if (!db) {
+      db = [make({ name: 'Mon premier projet' })];
+      created = true;
+    }
     if (!Array.isArray(db)) throw Error();
   } catch {
     throw Error('Les données locales sont illisibles. Exporte une sauvegarde avant toute réparation.');
@@ -82,26 +125,30 @@ export async function demoApi(path, opt = {}) {
         } else p.files[n] = String(body.content || '');
         result = p;
       } else {
-        p.files[n] = String(body.content || '');
+        // Saving while typing: check only the sizes, the images were checked when they were added.
+        const content = String(body.content || '');
+        if (content.length > MAX_FILE_SIZE) fail(`Fichier trop volumineux (${formatSize(MAX_FILE_SIZE)} maximum)`, 413);
+        p.files[n] = content;
+        if (projectSize(p) > MAX_PROJECT_SIZE) fail('Projet trop volumineux', 413);
         result = { ok: true };
       }
-      validateProject(p);
+      if (method !== 'PUT') validateProject(p);
     } else if (parts[2] === 'snapshot') {
       p.history.push({
         id: uid(),
         at: new Date().toISOString(),
         label: String(body.label || 'Version').slice(0, 80),
-        files: structuredClone(p.files),
-        assets: structuredClone(p.assets),
+        files: { ...p.files },
+        assets: { ...p.assets },
         main: p.main,
       });
       p.history = p.history.slice(-20);
-      result = { history: p.history };
+      result = { history: p.history.map(publicVersion) };
     } else if (parts[2] === 'restore') {
       const s = p.history.find((s) => s.id === parts[3]);
       if (!s) fail('Version introuvable', 404);
-      p.files = structuredClone(s.files);
-      p.assets = structuredClone(s.assets || {});
+      p.files = { ...s.files };
+      p.assets = { ...(s.assets || {}) };
       p.main =
         s.main ||
         Object.keys(s.files).find((n) => n === p.main) ||
@@ -110,13 +157,16 @@ export async function demoApi(path, opt = {}) {
     } else fail('Action indisponible', 404);
     if (method !== 'GET') p.updatedAt = new Date().toISOString();
   } else fail('Action indisponible', 404);
-  try {
-    localStorage.setItem(key, JSON.stringify(db));
-  } catch {
-    fail(
-      'Stockage navigateur plein. Exporte tes projets ZIP puis libère de la place. Aucune modification n’a été enregistrée.',
-      507,
-    );
-  }
-  return structuredClone(result);
+  if ((opt.method || 'GET') !== 'GET' || created)
+    try {
+      await store.save(db);
+    } catch (e) {
+      fail(
+        storageFull(e) || store.kind === 'local'
+          ? 'Stockage navigateur plein. Exporte tes projets ZIP puis libère de la place. Aucune modification n’a été enregistrée.'
+          : 'Enregistrement impossible dans le navigateur : ' + (e?.message || e),
+        507,
+      );
+    }
+  return result?.files ? publicCopy(result) : structuredClone(result);
 }

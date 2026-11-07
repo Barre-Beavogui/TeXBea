@@ -33,7 +33,7 @@ Ouvre ensuite `http://localhost:5173`. À la première utilisation, clique sur *
 npm test
 ```
 
-Les tests (`test/`, exécutés avec `node --test`, sans dépendance supplémentaire) couvrent la validation des chemins et des projets, l’import ZIP, l’analyse LaTeX sans IA, le retour PDF → source et l’API navigateur (projets, versions, corbeille, stockage plein). Le workflow `.github/workflows/ci.yml` lance les tests et les deux builds sur chaque pull request.
+Les tests (`test/`, exécutés avec `node --test` ; `fake-indexeddb` simule IndexedDB) couvrent la validation des chemins et des projets, l’import ZIP, l’analyse LaTeX sans IA, le retour PDF → source et l’API navigateur (projets, versions, corbeille, stockage plein, stockage IndexedDB de gros projets). Le workflow `.github/workflows/ci.yml` lance les tests et les deux builds sur chaque pull request.
 
 ## Installation sur Mac
 
@@ -189,7 +189,7 @@ Pas encore disponible par rapport à Overleaf : collaboration en temps réel, pa
 
 L’IA nécessite WebGPU, plusieurs centaines de Mo à environ un Go de téléchargement selon le modèle et environ 1–2 Go de mémoire graphique. Chrome récent sur ordinateur est recommandé. Les petits modèles peuvent proposer du code incorrect : l’utilisateur révise et compile les propositions. Si WebGPU est absent, l’analyse et tous les outils de projets restent utilisables. Le chargement des ressources utilise Hugging Face et les bibliothèques MLC ; seules les ressources des modèles sont téléchargées, pas le document. [Documentation WebLLM](https://webllm.mlc.ai/docs/user/get_started.html).
 
-La limite actuelle est de 200 fichiers et 3 Mo de contenu source/Base64 par projet, sous réserve du quota global de stockage du navigateur. Un dépassement est signalé sans remplacer les données déjà enregistrées. Exporter régulièrement ses ZIP est recommandé. Les ZIP conservent les fichiers et le fichier principal ; l’historique reste dans le navigateur. Pas de partage public automatique des documents.
+**Fichiers volumineux** : un projet peut contenir 2 000 fichiers et 250 Mo (images comptées en Base64, soit environ 185 Mo d’images réelles), avec 75 Mo par image et 250 Mo par archive importée. Dans le navigateur, les projets sont stockés dans IndexedDB (et non plus localStorage, limité à environ 5 Mo) : une image n’est stockée qu’une fois même si elle figure dans plusieurs versions, et les anciens projets sont repris automatiquement. Sur le serveur, les images sont écrites à part dans `server/data/blobs/` et `db.json` reste léger ; la taille maximale d’une requête se règle avec `TEXBEA_BODY_LIMIT_MB`. Bea accepte en pièce jointe des PDF ou documents Word jusqu’à 300 Mo et en lit le début. Le quota global de stockage du navigateur s’applique toujours. Un dépassement est signalé sans remplacer les données déjà enregistrées. Exporter régulièrement ses ZIP est recommandé. Les ZIP conservent les fichiers et le fichier principal ; l’historique reste dans le navigateur. Pas de partage public automatique des documents.
 
 La collaboration simultanée entre utilisateurs sur Internet et les invitations ne sont pas encore déployées : elles feront l’objet d’une prochaine étape avec un serveur de synchronisation et des règles d’accès. Le ZIP fournit aujourd’hui un partage de copie utilisable. La synchronisation WebSocket du serveur local est limitée aux projets de l’utilisateur authentifié.
 

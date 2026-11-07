@@ -1,4 +1,11 @@
-import { safePath, validateProject, templateProject, renameFile } from '../src/project-tools.js';
+import {
+  safePath,
+  validateProject,
+  templateProject,
+  renameFile,
+  MAX_FILE_SIZE,
+  MAX_PROJECT_SIZE,
+} from '../src/project-tools.js';
 import { compilers, effectiveCompiler, isCompiler } from '../src/compilers.js';
 import express from 'express';
 import crypto from 'crypto';
@@ -12,7 +19,14 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
-const DATA = path.join(__dirname, 'data', 'db.json');
+const DATA_DIR = process.env.TEXBEA_DATA || path.join(__dirname, 'data');
+const DATA = path.join(DATA_DIR, 'db.json');
+// Images live next to db.json, one file per content (named by its SHA-256): db.json stays small and
+// an image kept in twenty versions is stored once.
+const BLOBS = path.join(DATA_DIR, 'blobs');
+const REF = '@blob:';
+const blobContent = new Map(); // hash → Base64
+const blobHash = new Map(); // Base64 → hash
 const PDFS = path.join(__dirname, 'pdfs');
 const PORT = Number(process.env.PORT || 8787);
 const sessions = new Map();
@@ -32,16 +46,77 @@ Ce projet est sauvegardé par le serveur TeXBea.
 E = mc^2
 \]
 \end{document}`;
+async function readBlob(hash) {
+  if (!blobContent.has(hash)) {
+    const content = await fsp.readFile(path.join(BLOBS, hash), 'utf8').catch(() => '');
+    blobContent.set(hash, content);
+    blobHash.set(content, hash);
+  }
+  return blobContent.get(hash);
+}
+async function hydrate(assets = {}) {
+  const out = {};
+  for (const [n, v] of Object.entries(assets)) out[n] = v.startsWith(REF) ? await readBlob(v.slice(REF.length)) : v;
+  return out;
+}
 async function db() {
+  let d;
   try {
-    return JSON.parse(await fsp.readFile(DATA, 'utf8'));
+    d = JSON.parse(await fsp.readFile(DATA, 'utf8'));
   } catch {
     return { users: [], projects: [] };
   }
+  for (const p of d.projects) {
+    p.assets = await hydrate(p.assets);
+    for (const s of p.history || []) s.assets = await hydrate(s.assets);
+  }
+  return d;
 }
-async function save(x) {
-  await fsp.mkdir(path.dirname(DATA), { recursive: true });
-  await fsp.writeFile(DATA, JSON.stringify(x, null, 2));
+// One write at a time, so cleaning up images never races another request's new image.
+let saving = Promise.resolve();
+function save(x) {
+  const run = saving.then(() => write(x));
+  saving = run.catch(() => {});
+  return run;
+}
+async function write(x) {
+  await fsp.mkdir(BLOBS, { recursive: true });
+  const used = new Set();
+  const refs = async (assets = {}) => {
+    const out = {};
+    for (const [n, v] of Object.entries(assets)) {
+      let h = blobHash.get(v);
+      if (!h) {
+        h = crypto.createHash('sha256').update(v).digest('hex');
+        const file = path.join(BLOBS, h);
+        if (!fs.existsSync(file)) {
+          await fsp.writeFile(file + '.tmp', v);
+          await fsp.rename(file + '.tmp', file);
+        }
+        blobHash.set(v, h);
+        blobContent.set(h, v);
+      }
+      used.add(h);
+      out[n] = REF + h;
+    }
+    return out;
+  };
+  const stored = { ...x, projects: [] };
+  for (const p of x.projects) {
+    const history = [];
+    for (const s of p.history || []) history.push({ ...s, assets: await refs(s.assets) });
+    stored.projects.push({ ...p, assets: await refs(p.assets), history });
+  }
+  await fsp.writeFile(DATA + '.tmp', JSON.stringify(stored, null, 2));
+  await fsp.rename(DATA + '.tmp', DATA);
+  // Forget images no project or version points to any more.
+  for (const name of await fsp.readdir(BLOBS))
+    if (!used.has(name) && !name.endsWith('.tmp')) {
+      await fsp.rm(path.join(BLOBS, name), { force: true });
+      const content = blobContent.get(name);
+      blobContent.delete(name);
+      if (content != null) blobHash.delete(content);
+    }
 }
 function id() {
   return crypto.randomUUID();
@@ -59,11 +134,17 @@ function auth(req, res, next) {
 function safeName(n) {
   return safePath(n);
 }
+// Versions are sent without their images: the history panel compares sources only.
+function publicVersion(s) {
+  return { ...s, assets: Object.fromEntries(Object.keys(s.assets || {}).map((n) => [n, ''])) };
+}
 function publicProject(p) {
-  return { ...p, history: (p.history || []).slice(-20) };
+  return { ...p, history: (p.history || []).slice(-20).map(publicVersion) };
 }
 const app = express();
-app.use(express.json({ limit: '8mb' }));
+// A whole project (sources + Base64 images) can travel in one request, for an import.
+const BODY_LIMIT = Number(process.env.TEXBEA_BODY_LIMIT_MB) || Math.ceil(MAX_PROJECT_SIZE / 1_000_000) + 10;
+app.use(express.json({ limit: BODY_LIMIT + 'mb' }));
 app.get('/api/health', (_, res) => res.json({ ok: true, engine: process.env.LATEX_ENGINE || 'latexmk' }));
 app.post('/api/auth/register', async (req, res) => {
   const { email, password, name } = req.body || {};
@@ -187,7 +268,7 @@ app.put('/api/projects/:pid/files/:name', auth, async (req, res) => {
   const p = d.projects.find((x) => x.id === req.params.pid && x.ownerId === req.userId);
   if (!p) return res.sendStatus(404);
   const content = String(req.body?.content ?? '');
-  if (content.length > 2_000_000) return res.status(413).json({ error: 'Fichier trop volumineux' });
+  if (content.length > MAX_FILE_SIZE) return res.status(413).json({ error: 'Fichier trop volumineux' });
   p.files[name] = content;
   p.updatedAt = new Date().toISOString();
   await save(d);
@@ -249,13 +330,13 @@ app.post('/api/projects/:pid/snapshot', auth, async (req, res) => {
     id: id(),
     at: new Date().toISOString(),
     label: String(req.body?.label || 'Snapshot').slice(0, 80),
-    files: structuredClone(p.files),
-    assets: structuredClone(p.assets || {}),
+    files: { ...p.files },
+    assets: { ...(p.assets || {}) },
     main: p.main,
   });
   p.history = p.history.slice(-20);
   await save(d);
-  res.json({ history: p.history });
+  res.json({ history: p.history.map(publicVersion) });
 });
 app.post('/api/projects/:pid/restore/:sid', auth, async (req, res) => {
   const d = await db();
@@ -263,8 +344,8 @@ app.post('/api/projects/:pid/restore/:sid', auth, async (req, res) => {
   if (!p) return res.sendStatus(404);
   const s = (p.history || []).find((x) => x.id === req.params.sid);
   if (!s) return res.sendStatus(404);
-  p.files = structuredClone(s.files);
-  p.assets = structuredClone(s.assets || {});
+  p.files = { ...s.files };
+  p.assets = { ...(s.assets || {}) };
   p.main = s.main || (p.main in p.files ? p.main : Object.keys(p.files).find((n) => n.endsWith('.tex')));
   p.updatedAt = new Date().toISOString();
   await save(d);
@@ -344,6 +425,13 @@ if (fs.existsSync(path.join(ROOT, 'dist'))) {
     req.path.startsWith('/api/') ? next() : res.sendFile(path.join(ROOT, 'dist', 'index.html')),
   );
 }
+app.use((err, req, res, next) => {
+  if (err?.type === 'entity.too.large')
+    return res
+      .status(413)
+      .json({ error: `Envoi trop volumineux (${BODY_LIMIT} Mo maximum, voir TEXBEA_BODY_LIMIT_MB).` });
+  next(err);
+});
 const server = app.listen(PORT, () => console.log(`TeXBea server: http://localhost:${PORT}`));
 const wss = new WebSocketServer({ server, path: '/ws' });
 const rooms = new Map();

@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { FilePlus2, LayoutTemplate, Presentation, Upload, FileArchive, FileCode2, Check } from 'lucide-react';
 import { templates, templateGroups, accents } from './templates.js';
+import { formatSize, MAX_ARCHIVE_SIZE } from './project-tools.js';
 
 // The « Nouveau projet » dialog: start blank, from a document template, from a Beamer presentation, or from files.
 const sources = [
@@ -217,7 +218,7 @@ export default function NewProjectDialog({ onClose, onCreate, onImport, initialS
                     <li key={f.name}>
                       {/\.zip$/i.test(f.name) ? <FileArchive size={16} /> : <FileCode2 size={16} />}
                       {f.name}
-                      <small>{f.size < 1024 ? f.size + ' o' : Math.round(f.size / 1024) + ' Ko'}</small>
+                      <small>{formatSize(f.size)}</small>
                     </li>
                   ))}
                 </ul>
@@ -230,7 +231,7 @@ export default function NewProjectDialog({ onClose, onCreate, onImport, initialS
               <small>
                 {files.length
                   ? 'Clique pour choisir d’autres fichiers.'
-                  : 'Export Overleaf ou TeXBea (.zip), ou un .tex avec ses images et sa bibliographie (.bib, .png, .jpg, .pdf).'}
+                  : `Export Overleaf ou TeXBea (.zip), ou un .tex avec ses images et sa bibliographie (.bib, .png, .jpg, .pdf). Jusqu’à ${formatSize(MAX_ARCHIVE_SIZE)}.`}
               </small>
             </label>
           )}
