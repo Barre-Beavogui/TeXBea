@@ -9,6 +9,7 @@ import {
 } from './project-tools.js';
 import { isCompiler } from './compilers.js';
 import { defaultStore, storageFull } from './browser-store.js';
+import { cleanComment, mergeComments } from './share.js';
 let store;
 // Lets the tests choose where projects live.
 export function useStore(s) {
@@ -86,6 +87,7 @@ async function run(path, opt) {
         deleted: !!input.deleted,
         updatedAt: input.updatedAt || new Date().toISOString(),
         history: (input.history || []).slice(-20),
+        comments: input.comments || [],
       });
       added++;
     }
@@ -159,6 +161,27 @@ async function run(path, opt) {
         result = { ok: true };
       }
       if (method !== 'PUT') validateProject(p);
+    } else if (parts[2] === 'comments') {
+      p.comments = p.comments || [];
+      if (parts[3] === 'merge' && method === 'POST') {
+        const merged = mergeComments(p.comments, body.comments);
+        p.comments = merged.comments;
+        result = merged;
+      } else if (method === 'POST') {
+        const c = cleanComment({ ...body, id: uid(), at: new Date().toISOString() });
+        if (!c) fail('Commentaire vide');
+        p.comments.push(c);
+        result = { comments: p.comments };
+      } else {
+        const c = p.comments.find((c) => c.id === parts[3]);
+        if (!c) fail('Commentaire introuvable', 404);
+        if (method === 'DELETE') p.comments = p.comments.filter((x) => x !== c);
+        else if (method === 'PATCH') {
+          if ('resolved' in body) c.resolved = !!body.resolved;
+          if (typeof body.text === 'string' && body.text.trim()) c.text = body.text.trim().slice(0, 4000);
+        }
+        result = { comments: p.comments };
+      }
     } else if (parts[2] === 'snapshot') {
       p.history.push({
         id: uid(),

@@ -3343,3 +3343,198 @@ button.link:hover,
     border: 1px solid ButtonText;
   }
 }
+
+/* Comments and sharing */
+.comments-panel {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  max-height: 50%;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-2);
+  font-size: 13px;
+}
+.comments-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 10px;
+}
+.comments-head b {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+}
+.comments-head label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-2);
+  font-size: 12px;
+}
+.comment-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 10px 8px;
+}
+.comment-form small {
+  color: var(--text-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.comment-form textarea {
+  resize: vertical;
+  font: inherit;
+}
+.comment-form > div {
+  display: flex;
+  gap: 6px;
+}
+.comment-form > div input {
+  flex: 1;
+  min-width: 0;
+}
+.comments-list {
+  overflow: auto;
+  padding: 0 10px 8px;
+}
+.comments-file {
+  margin: 6px 0 4px;
+  color: var(--text-3);
+  font: 600 11px var(--font-mono);
+}
+.comment {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 6px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--info);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+.comment.resolved {
+  border-left-color: var(--success);
+  opacity: 0.65;
+}
+.app .comment .comment-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-height: 0;
+  padding: 6px 8px;
+  border: 0;
+  background: none;
+  text-align: left;
+  white-space: normal;
+}
+.comment-meta {
+  color: var(--text-3);
+  font-size: 11px;
+}
+.comment-meta b {
+  color: var(--text);
+}
+.comment q {
+  color: var(--text-2);
+  font: 12px var(--font-mono);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+.comment-actions {
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+}
+.app .top-btn .badge {
+  min-width: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--info);
+  color: #fff;
+  font-size: 11px;
+}
+.share-dialog {
+  max-width: 560px;
+}
+.share-dialog h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.share-dialog p {
+  color: var(--text-2);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.share-link {
+  width: 100%;
+  font: 12px var(--font-mono);
+  word-break: break-all;
+}
+.share-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+.share-actions small {
+  flex: 1;
+  color: var(--text-3);
+}
+.share-note {
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--warning-soft);
+}
+.shared-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  margin-left: 16px;
+}
+.shared-title b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.shared-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.shared-view main {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+.shared-file {
+  margin: 4px 8px;
+  max-width: 60%;
+}
+.shared-reply {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--success-soft);
+  font-size: 13px;
+}
+.shared-reply input {
+  flex: 1;
+  min-width: 0;
+  font: 12px var(--font-mono);
+}

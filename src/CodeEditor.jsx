@@ -260,7 +260,7 @@ function wrapWith(view, before, after) {
 }
 
 const CodeEditor = forwardRef(function CodeEditor(
-  { value, docKey, onChange, settings, getProject, diagnostics, jump, actions, onCursor },
+  { value, docKey, onChange, settings, getProject, diagnostics, jump, actions, onCursor, readOnly },
   ref,
 ) {
   const host = useRef(),
@@ -327,6 +327,7 @@ const CodeEditor = forwardRef(function CodeEditor(
         compartments.brackets.of(d.brackets),
         compartments.spell.of(d.spell),
         EditorView.contentAttributes.of({ 'aria-label': 'Code LaTeX' }),
+        readOnly ? EditorState.readOnly.of(true) : [],
         // A pasted or dropped image goes to Bea, who writes its LaTeX at that place.
         EditorView.domEventHandlers({
           paste: (event) => {

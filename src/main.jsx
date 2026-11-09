@@ -11,6 +11,10 @@ import { prepareImage } from './image-input.js';
 import { loadSettings, saveSettings } from './settings.js';
 import { demoApi } from './demo-api.js';
 import { registerOffline } from './pwa.js';
+import { readHash, commentLine } from './share.js';
+import CommentsPanel from './CommentsPanel.jsx';
+import SharedView from './SharedView.jsx';
+import ShareDialog from './ShareDialog.jsx';
 import { backupBlob, backupFileName, readBackup, LAST_BACKUP_KEY } from './backup.js';
 import CodeEditor from './CodeEditor.jsx';
 import EditorToolbar from './EditorToolbar.jsx';
@@ -44,6 +48,8 @@ import {
   ScrollText,
   Image as ImageIcon,
   Presentation,
+  MessageSquare,
+  Share2,
 } from 'lucide-react';
 import './style.css';
 const AssistantPanel = lazy(() => import('./AssistantPanel.jsx'));
@@ -171,6 +177,9 @@ function App() {
     [beaRequest, setBeaRequest] = useState(null),
     [pdfTarget, setPdfTarget] = useState(null),
     [assetPreview, setAssetPreview] = useState(null),
+    [shared, setShared] = useState(null),
+    [commentsOpen, setCommentsOpen] = useState(false),
+    [shareOpen, setShareOpen] = useState(false),
     timer = useRef(),
     autoTimer = useRef(),
     compiling = useRef(false),
@@ -187,7 +196,17 @@ function App() {
   const files = project?.files || {};
   const currentFiles = useMemo(() => ({ ...files, [active]: code }), [files, active, code]);
   const parsedLog = useMemo(() => parseLatexLog(log, files, project?.main), [log, files, project?.main]);
-  const activeDiagnostics = useMemo(() => parsedLog.all.filter((e) => e.file === active), [parsedLog, active]);
+  const comments = project?.comments || [];
+  const activeDiagnostics = useMemo(
+    () => [
+      ...parsedLog.all.filter((e) => e.file === active),
+      // Open comments appear in the margin like the log's messages.
+      ...comments
+        .filter((c) => c.file === active && !c.resolved)
+        .map((c) => ({ line: commentLine(code, c), level: 'info', message: `💬 ${c.author} : ${c.text}` })),
+    ],
+    [parsedLog, active, comments, code],
+  );
   const outline = useMemo(() => documentOutline(code), [code]);
   const mainSource = active === project?.main ? code : project?.files?.[project?.main];
   const isBeamer = /\\documentclass\s*(?:\[[^\]]*\])?\s*\{beamer\}/.test(mainSource || '');
@@ -237,7 +256,9 @@ function App() {
     if (DEMO) {
       setUser({ name: 'Essai local' });
       loadProjects();
-      return;
+      openLinkInHash();
+      window.addEventListener('hashchange', openLinkInHash);
+      return () => window.removeEventListener('hashchange', openLinkInHash);
     }
     if (localStorage.tn_token) {
       setUser({ name: 'Workspace' });
@@ -447,6 +468,91 @@ function App() {
     if (dirty && !(await saveFile(true))) return;
     setProjects(await api('/projects'));
     setLibrary(true);
+  }
+  function clearHash() {
+    history.replaceState(null, '', location.pathname + location.search);
+  }
+  // A share link opens the read-only copy; a reply link adds someone's comments to the project they read.
+  async function openLinkInHash() {
+    let link;
+    try {
+      link = await readHash(location.hash);
+    } catch (e) {
+      clearHash();
+      notify(e.message);
+      return;
+    }
+    if (!link) return;
+    setShareOpen(false);
+    if (link.kind === 'share') return setShared(link);
+    clearHash();
+    try {
+      const r = await api(`/projects/${link.id}/comments/merge`, {
+        method: 'POST',
+        body: JSON.stringify({ comments: link.comments }),
+      });
+      await loadProjects(link.id);
+      setLibrary(false);
+      setCommentsOpen(true);
+      notify(
+        r.added
+          ? `${r.added} commentaire${r.added > 1 ? 's' : ''} ajouté${r.added > 1 ? 's' : ''} à « ${link.name} »`
+          : 'Ces commentaires sont déjà dans le projet',
+      );
+    } catch (e) {
+      notify(
+        e.status === 404
+          ? `Le projet « ${link.name} » n’est pas dans ce navigateur : ouvre ce lien là où tu l’as partagé.`
+          : e.message,
+      );
+    }
+  }
+  async function copySharedProject(p) {
+    try {
+      const created = await api('/projects', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: (p.name + ' (copie)').slice(0, 80),
+          main: p.main,
+          files: p.files,
+          assets: p.assets,
+          compiler: p.compiler,
+        }),
+      });
+      clearHash();
+      setShared(null);
+      await loadProjects(created.id);
+      setLibrary(false);
+      notify('Copie ajoutée à tes projets');
+    } catch (e) {
+      notify(e.message);
+    }
+  }
+  async function addComment({ text, author }) {
+    const sel = editorRef.current?.selection();
+    const selected = sel && sel.end > sel.start ? code.slice(sel.start, sel.end).split('\n')[0] : '';
+    const quote = (selected || editorRef.current?.cursorLine() || '').trim().slice(0, 300);
+    try {
+      const r = await api(`/projects/${project.id}/comments`, {
+        method: 'POST',
+        body: JSON.stringify({ file: active, line: cursor.line, quote, text, author }),
+      });
+      setProject((p) => ({ ...p, comments: r.comments }));
+    } catch (e) {
+      notify(e.message);
+    }
+  }
+  async function changeComment(id, change) {
+    try {
+      const r = await api(`/projects/${project.id}/comments/${id}`, change);
+      setProject((p) => ({ ...p, comments: r.comments }));
+    } catch (e) {
+      notify(e.message);
+    }
+  }
+  async function openShare() {
+    if (dirty && !(await saveFile(true))) return;
+    setShareOpen(true);
   }
   async function openFromLibrary(id) {
     try {
@@ -765,6 +871,27 @@ function App() {
     setUser(null);
     setProject(null);
   }
+  if (shared)
+    return (
+      <>
+        <SharedView
+          shared={shared}
+          settings={settings}
+          notify={notify}
+          onCopy={copySharedProject}
+          onExit={() => {
+            clearHash();
+            setShared(null);
+          }}
+        />
+        {toast && (
+          <div className="toast" role="status">
+            <Check size={16} />
+            {toast}
+          </div>
+        )}
+      </>
+    );
   if (!user)
     return (
       <Auth
@@ -890,6 +1017,24 @@ function App() {
           <button className="top-btn" onClick={() => setShowHistory(true)} title="Versions et comparaison">
             <History size={15} /> <span>Historique</span>
           </button>
+          {DEMO && (
+            <button
+              className={'top-btn' + (commentsOpen ? ' selected' : '')}
+              onClick={() => setCommentsOpen((v) => !v)}
+              aria-expanded={commentsOpen}
+              title="Commentaires sur le code"
+            >
+              <MessageSquare size={15} /> <span>Commentaires</span>
+              {comments.some((c) => !c.resolved) && (
+                <span className="badge">{comments.filter((c) => !c.resolved).length}</span>
+              )}
+            </button>
+          )}
+          {DEMO && (
+            <button className="top-btn" onClick={openShare} title="Partager une copie en lecture seule par un lien">
+              <Share2 size={15} /> <span>Partager</span>
+            </button>
+          )}
           <button className="top-btn" onClick={() => setWordCountOpen(true)} title="Nombre de mots">
             <CaseSensitive size={15} /> <span>Mots</span>
           </button>
@@ -1090,6 +1235,21 @@ function App() {
                 notify={notify}
               />
             </Suspense>
+          )}
+          {commentsOpen && (
+            <CommentsPanel
+              comments={comments}
+              files={currentFiles}
+              active={active}
+              anchor={{ line: cursor.line, quote: '' }}
+              onAdd={addComment}
+              onResolve={(id, resolved) => changeComment(id, { method: 'PATCH', body: JSON.stringify({ resolved }) })}
+              onDelete={(id) => {
+                if (confirm('Supprimer ce commentaire ?')) changeComment(id, { method: 'DELETE' });
+              }}
+              onJump={(file, line) => openAt(file, lineRange(currentFiles[file] ?? '', line))}
+              onClose={() => setCommentsOpen(false)}
+            />
           )}
           {projectSearch && (
             <ProjectSearch
@@ -1294,6 +1454,7 @@ function App() {
           onClose={() => setShowHistory(false)}
         />
       )}
+      {shareOpen && <ShareDialog project={project} onClose={() => setShareOpen(false)} notify={notify} />}
       {wordCountOpen && (
         <WordCountDialog files={currentFiles} main={project.main} onClose={() => setWordCountOpen(false)} />
       )}

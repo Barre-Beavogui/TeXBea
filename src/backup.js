@@ -4,6 +4,7 @@
 // An image is written once even when it appears in the project and in several of its versions.
 import { validateProject, safePath, formatSize, isBase64, MAX_ARCHIVE_SIZE } from './project-tools.js';
 import { isCompiler } from './compilers.js';
+import { cleanComments } from './share.js';
 
 export const BACKUP_FILE = '.texbea/backup.json';
 export const MAX_BACKUP_SIZE = MAX_ARCHIVE_SIZE * 4;
@@ -58,6 +59,7 @@ export async function buildBackup(projects, now = new Date()) {
       updatedAt: p.updatedAt,
       files: Object.keys(p.files),
       assets,
+      comments: p.comments || [],
       history: (p.history || []).map((s) => ({
         id: s.id,
         at: s.at,
@@ -165,6 +167,7 @@ export async function readBackup(data) {
       ...project,
       id: typeof m.id === 'string' ? m.id : undefined,
       deleted: !!m.deleted,
+      comments: cleanComments(m.comments),
       updatedAt: typeof m.updatedAt === 'string' ? m.updatedAt : undefined,
       history: history.slice(-20),
     });
