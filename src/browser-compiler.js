@@ -1,4 +1,5 @@
 import { safePath } from './project-tools.js';
+import { prepareBibliography, needsBibliographyPass } from './bibliography.js';
 // SwiftLaTeX runs pdfTeX / XeTeX and dvipdfmx in isolated Web Workers; document contents stay local.
 class Engine {
   constructor(script) {
@@ -109,7 +110,8 @@ export async function compileInBrowser(project, onProgress = () => {}, compiler 
     onProgress(`Chargement du moteur ${compiler === 'xelatex' ? 'XeLaTeX' : 'pdfLaTeX'}…`);
     await tex.load();
     tex.worker.postMessage({ cmd: 'flushcache' });
-    const contentFiles = { ...project.files };
+    const bib = prepareBibliography(project.files);
+    const contentFiles = { ...(bib ? bib.files : project.files) };
     for (const [name, encoded] of Object.entries(project.assets || {}))
       contentFiles[name] = Uint8Array.from(atob(encoded), (x) => x.charCodeAt(0));
     await tex.writeFiles(contentFiles);
@@ -122,7 +124,7 @@ export async function compileInBrowser(project, onProgress = () => {}, compiler 
     }
     tex.worker.postMessage({ cmd: 'setmainfile', url: entry });
     let result;
-    const passes = Object.values(project.files).some((text) => /\\bibliography\{/.test(text)) ? 3 : 2;
+    const passes = needsBibliographyPass(project.files) ? 3 : 2;
     for (let pass = 1; pass <= passes; pass++) {
       onProgress(pass === 1 ? 'Compilation et téléchargement des paquets…' : 'Résolution des références…');
       result = await tex.run('compilelatex');
@@ -147,6 +149,7 @@ export async function compileInBrowser(project, onProgress = () => {}, compiler 
       if (converted.result !== 'ok' || !converted.pdf) throw failure(log, 'Conversion XDV → PDF échouée.');
       pdf = converted.pdf;
     }
+    if (bib) log = bib.note + '\n\n' + log;
     return { url: URL.createObjectURL(new Blob([pdf], { type: 'application/pdf' })), log };
   } catch (error) {
     current?.stop();
