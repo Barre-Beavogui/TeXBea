@@ -15,6 +15,7 @@ import {
   Pencil,
   RotateCcw,
 } from 'lucide-react';
+import StorageStatus from './StorageStatus.jsx';
 export function Brand() {
   return (
     <div className="brand">
@@ -30,7 +31,7 @@ export function Brand() {
     </div>
   );
 }
-export default function ProjectLibrary({ projects, onOpen, onNew, onAction, mode }) {
+export default function ProjectLibrary({ projects, onOpen, onNew, onAction, onBackup, onRestore, storageKey, mode }) {
   const [trash, setTrash] = useState(false);
   const [query, setQuery] = useState(''),
     [sort, setSort] = useState('recent');
@@ -191,13 +192,20 @@ export default function ProjectLibrary({ projects, onOpen, onNew, onAction, mode
                 </button>
               </section>
             )}
+            <StorageStatus
+              projects={projects}
+              browser={mode}
+              onBackup={onBackup}
+              onRestore={onRestore}
+              refreshKey={storageKey}
+            />
             <section className="workspace-note">
               <BookOpen size={21} />
               <h3>Ton atelier, ton rythme.</h3>
               <p>Écris en LaTeX, compile ton PDF et retrouve le code d’un double-clic sur le texte.</p>
               <small>
                 {mode
-                  ? 'Les projets sont conservés dans ce navigateur. Exporte régulièrement un ZIP pour les sauvegarder.'
+                  ? 'Les projets sont conservés dans ce navigateur. « Tout sauvegarder » les met tous dans un seul ZIP, versions comprises.'
                   : 'Les projets sont sauvegardés dans ton espace.'}
               </small>
             </section>

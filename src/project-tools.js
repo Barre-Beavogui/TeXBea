@@ -8,6 +8,7 @@ export const MAX_ARCHIVE_SIZE = 250_000_000;
 export function formatSize(n) {
   if (n < 1000) return n + ' o';
   if (n < 1_000_000) return Math.round(n / 1000) + ' Ko';
+  if (n >= 1_000_000_000) return (n / 1_000_000_000).toFixed(1).replace('.', ',') + ' Go';
   return (n / 1_000_000).toFixed(n < 10_000_000 ? 1 : 0).replace('.', ',') + ' Mo';
 }
 // Linear check: a grouped regex overflows the stack on images of a few megabytes.

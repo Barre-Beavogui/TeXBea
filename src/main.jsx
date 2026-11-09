@@ -1,4 +1,4 @@
-import { exportProject, importFiles, checkFileSize, fileToBase64, formatSize } from './project-tools.js';
+import { exportProject, downloadBlob, importFiles, checkFileSize, fileToBase64, formatSize } from './project-tools.js';
 import NewProjectDialog from './NewProjectDialog.jsx';
 import { documentOutline } from './latex-analysis.js';
 import ProjectLibrary, { Brand } from './ProjectLibrary.jsx';
@@ -10,6 +10,7 @@ import { actionById, targetFor, lineWindow } from './ai-actions.js';
 import { prepareImage } from './image-input.js';
 import { loadSettings, saveSettings } from './settings.js';
 import { demoApi } from './demo-api.js';
+import { backupBlob, backupFileName, readBackup, LAST_BACKUP_KEY } from './backup.js';
 import CodeEditor from './CodeEditor.jsx';
 import EditorToolbar from './EditorToolbar.jsx';
 import { LogPanel, ProjectSearch, HistoryPanel, WordCountDialog, SettingsDialog } from './WorkspacePanels.jsx';
@@ -142,6 +143,7 @@ function fileTree(names) {
 function App() {
   const [user, setUser] = useState(null),
     [projects, setProjects] = useState([]),
+    [storageKey, setStorageKey] = useState(0),
     [project, setProject] = useState(null),
     [active, setActive] = useState('main.tex'),
     [code, setCode] = useState(''),
@@ -478,6 +480,60 @@ function App() {
       notify(e.message);
     }
   }
+  // Every project in one ZIP; in the browser version the versions and their images come along.
+  async function backupAll() {
+    try {
+      notify('Préparation de la sauvegarde…');
+      const all = DEMO ? await api('/backup') : await Promise.all(projects.map((p) => api('/projects/' + p.id)));
+      const now = new Date();
+      downloadBlob(await backupBlob(all), backupFileName(now));
+      localStorage.setItem(LAST_BACKUP_KEY, now.toISOString());
+      setStorageKey((k) => k + 1);
+      notify(`Sauvegarde téléchargée : ${all.length} projet${all.length > 1 ? 's' : ''}`);
+    } catch (e) {
+      notify('Sauvegarde impossible : ' + e.message);
+    }
+  }
+  async function restoreBackup(file) {
+    try {
+      const backup = await readBackup(file);
+      const when = backup.createdAt
+        ? new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long', timeStyle: 'short' }).format(new Date(backup.createdAt))
+        : 'date inconnue';
+      if (
+        !confirm(
+          `Restaurer ${backup.projects.length} projet(s) de la sauvegarde du ${when} ? Les projets actuels sont conservés ; ceux déjà présents à l’identique sont ignorés.`,
+        )
+      )
+        return;
+      let added = 0,
+        skipped = 0;
+      if (DEMO)
+        ({ added, skipped } = await demoApi('/restore', { method: 'POST', data: { projects: backup.projects } }));
+      else
+        for (const p of backup.projects) {
+          await api('/projects', {
+            method: 'POST',
+            body: JSON.stringify({
+              name: p.name,
+              main: p.main,
+              files: p.files,
+              assets: p.assets,
+              compiler: p.compiler,
+            }),
+          });
+          added++;
+        }
+      setProjects(await api('/projects'));
+      setStorageKey((k) => k + 1);
+      notify(
+        `${added} projet${added > 1 ? 's' : ''} restauré${added > 1 ? 's' : ''}` +
+          (skipped ? `, ${skipped} déjà présent${skipped > 1 ? 's' : ''}` : ''),
+      );
+    } catch (e) {
+      notify(e.message);
+    }
+  }
   async function importArchive(files, name) {
     const total = [...files].reduce((n, f) => n + f.size, 0);
     if (total > 5_000_000) notify(`Import de ${formatSize(total)} en cours…`);
@@ -725,6 +781,9 @@ function App() {
           onOpen={openFromLibrary}
           onNew={newProject}
           onAction={projectAction}
+          onBackup={backupAll}
+          onRestore={restoreBackup}
+          storageKey={storageKey}
           mode={DEMO}
         />
         {createOpen && (

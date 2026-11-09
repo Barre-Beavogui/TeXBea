@@ -57,14 +57,40 @@ async function run(path, opt) {
   } catch {
     throw Error('Les données locales sont illisibles. Exporte une sauvegarde avant toute réparation.');
   }
-  const body = JSON.parse(opt.body || '{}'),
+  // `data` spares a JSON round trip for large bodies (a whole backup).
+  const body = opt.data ?? JSON.parse(opt.body || '{}'),
     method = opt.method || 'GET';
   const fail = (error, status = 400) => {
     throw Object.assign(new Error(error), { status, data: { error } });
   };
   const parts = path.split('/').filter(Boolean);
   let result;
-  if (parts[0] === 'projects' && parts.length === 1) {
+  if (parts[0] === 'backup' && method === 'GET') {
+    // Everything, versions' images included: the copies share their (immutable) strings.
+    return db.map((p) => ({ ...p, assets: { ...(p.assets || {}) }, history: [...(p.history || [])] }));
+  } else if (parts[0] === 'restore' && method === 'POST') {
+    // A project already here in the same state is skipped, so restoring the same backup twice adds nothing.
+    let added = 0,
+      skipped = 0;
+    for (const input of body.projects || []) {
+      const same = db.find((p) => p.id === input.id);
+      if (same && same.updatedAt === input.updatedAt) {
+        skipped++;
+        continue;
+      }
+      const data = validateProject(input);
+      db.push({
+        ...data,
+        id: same || !input.id ? uid() : input.id,
+        name: same ? `${data.name} (sauvegarde)`.slice(0, 80) : data.name,
+        deleted: !!input.deleted,
+        updatedAt: input.updatedAt || new Date().toISOString(),
+        history: (input.history || []).slice(-20),
+      });
+      added++;
+    }
+    result = { added, skipped };
+  } else if (parts[0] === 'projects' && parts.length === 1) {
     if (method === 'POST') {
       result = make(body);
       db.push(result);
