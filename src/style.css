@@ -2686,6 +2686,24 @@ button.link:hover,
   color: var(--text-2);
   font-size: 12px;
 }
+.offline-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--warning-soft);
+  color: var(--warning);
+  font-size: 12px;
+  font-weight: 600;
+}
+.library .install-app {
+  margin-left: auto;
+}
+.offline-chip + .install-app {
+  margin-left: 0;
+}
 .account-chip {
   margin-left: auto;
   display: grid;

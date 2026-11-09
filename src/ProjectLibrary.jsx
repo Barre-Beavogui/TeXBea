@@ -14,8 +14,11 @@ import {
   Download,
   Pencil,
   RotateCcw,
+  MonitorDown,
+  WifiOff,
 } from 'lucide-react';
 import StorageStatus from './StorageStatus.jsx';
+import { useAppStatus } from './pwa.js';
 export function Brand() {
   return (
     <div className="brand">
@@ -33,6 +36,7 @@ export function Brand() {
 }
 export default function ProjectLibrary({ projects, onOpen, onNew, onAction, onBackup, onRestore, storageKey, mode }) {
   const [trash, setTrash] = useState(false);
+  const app = useAppStatus();
   const [query, setQuery] = useState(''),
     [sort, setSort] = useState('recent');
   const list = useMemo(
@@ -59,6 +63,16 @@ export default function ProjectLibrary({ projects, onOpen, onNew, onAction, onBa
           <span className="active">Mes projets</span>
           <span className="library-mode">{mode ? 'Espace personnel · dans ce navigateur' : 'Mon atelier'}</span>
         </div>
+        {mode && !app.online && (
+          <span className="offline-chip" title="Les paquets LaTeX déjà utilisés restent disponibles">
+            <WifiOff size={14} /> Hors ligne
+          </span>
+        )}
+        {mode && app.canInstall && (
+          <button className="install-app" onClick={app.install}>
+            <MonitorDown size={15} /> Installer l’app
+          </button>
+        )}
         <div className="account-chip">B</div>
       </header>
       <div className="library-content">

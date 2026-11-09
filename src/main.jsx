@@ -10,6 +10,7 @@ import { actionById, targetFor, lineWindow } from './ai-actions.js';
 import { prepareImage } from './image-input.js';
 import { loadSettings, saveSettings } from './settings.js';
 import { demoApi } from './demo-api.js';
+import { registerOffline } from './pwa.js';
 import { backupBlob, backupFileName, readBackup, LAST_BACKUP_KEY } from './backup.js';
 import CodeEditor from './CodeEditor.jsx';
 import EditorToolbar from './EditorToolbar.jsx';
@@ -1308,4 +1309,5 @@ function App() {
     </div>
   );
 }
+if (DEMO && import.meta.env.PROD) registerOffline();
 createRoot(document.getElementById('root')).render(<App />);
