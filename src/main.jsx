@@ -581,6 +581,13 @@ function App() {
       );
     }
   }
+  async function openReceived(entry) {
+    try {
+      setShared(await cloudSync.openReceived(entry));
+    } catch (e) {
+      notify(e.message || 'Impossible d’ouvrir ce projet.');
+    }
+  }
   async function copySharedProject(p) {
     try {
       const created = await api('/projects', {
@@ -1079,6 +1086,7 @@ function App() {
           onRestore={restoreBackup}
           autoBackup={autoBackup}
           cloudSync={cloudSync}
+          onOpenReceived={openReceived}
           api={api}
           onProfile={openProfileOrAuth}
           onLogout={logout}
@@ -1695,7 +1703,9 @@ function App() {
           onClose={() => setShowHistory(false)}
         />
       )}
-      {shareOpen && <ShareDialog project={project} onClose={() => setShareOpen(false)} notify={notify} />}
+      {shareOpen && (
+        <ShareDialog project={project} onClose={() => setShareOpen(false)} notify={notify} cloudSync={cloudSync} />
+      )}
       {visualOpen && (
         <VisualModal
           initialTab={visualOpen}

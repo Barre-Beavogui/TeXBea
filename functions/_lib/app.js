@@ -13,6 +13,7 @@ import {
 import { providerEnabled, startOAuth, finishOAuth, clearStateCookie } from './oauth.js';
 import { emailEnabled, requestCode, checkCode } from './email.js';
 import * as sync from './sync.js';
+import * as share from './share.js';
 
 const clientIp = (request) => request.headers.get('cf-connecting-ip') || 'unknown';
 
@@ -79,6 +80,7 @@ async function route(request, env, url, parts) {
     }
     if (parts[1] === 'account' && method === 'DELETE') {
       const user = await requireUser(env, request);
+      await share.dropForAccount(env, user.id, user.email);
       await deleteAccount(env, user.id);
       return json({ ok: true }, 200, { 'set-cookie': clearSessionCookie(secure) });
     }
@@ -93,9 +95,28 @@ async function route(request, env, url, parts) {
         if (method === 'PUT') return sync.putChunk(env, user, request, id, parts[4], parts[5]);
         if (method === 'GET') return sync.getChunk(env, user, id, parts[4], parts[5]);
       }
+      if (parts[3] === 'shares') {
+        if (!parts[4] && method === 'GET') return share.list(env, user, id);
+        if (!parts[4] && method === 'POST') return share.add(env, user, id, await readBody(request));
+        if (parts[4] === 'remove' && method === 'POST') return share.remove(env, user, id, await readBody(request));
+      }
       if (parts[3] === 'commit' && method === 'POST') return sync.commit(env, user, id, await readBody(request));
       if (parts[3] === 'remove' && method === 'POST') return sync.remove(env, user, id, await readBody(request));
     }
+  }
+  if (parts[0] === 'shared') {
+    const user = await requireUser(env, request);
+    if (parts[1] === 'index' && method === 'GET') return share.received(env, user);
+    if (
+      parts[1] === 'projects' &&
+      parts[2] &&
+      parts[3] &&
+      parts[4] === 'uploads' &&
+      parts[5] &&
+      parts[6] &&
+      method === 'GET'
+    )
+      return share.receivedChunk(env, user, parts[2], parts[3], parts[5], parts[6]);
   }
   throw new HttpError(404, 'Introuvable.');
 }

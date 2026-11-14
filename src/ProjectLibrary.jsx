@@ -93,6 +93,7 @@ const EMPTY = {
 };
 
 export default function ProjectLibrary({
+  onOpenReceived,
   projects,
   user,
   onOpen,
@@ -145,11 +146,12 @@ export default function ProjectLibrary({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [projects, query, sort, view],
   );
+  const received = cloudSync?.received || [];
   const live = projects.filter((p) => !p.deleted && !p.archived);
   const count = {
     all: live.length,
     workspace: live.filter((p) => !p.fromShare).length,
-    shared: live.filter((p) => p.fromShare).length,
+    shared: live.filter((p) => p.fromShare).length + received.length,
     archive: projects.filter((p) => !p.deleted && p.archived).length,
     trash: projects.filter((p) => p.deleted).length,
   };
@@ -389,6 +391,25 @@ export default function ProjectLibrary({
                 <Plus size={18} /> Nouveau projet
               </button>
             </div>
+            {view === 'shared' && !query && received.length > 0 && (
+              <section className="project-panel lib-received" aria-label="Projets partagés avec ton compte">
+                <h3>Partagés avec ton compte</h3>
+                {received.map((r) => (
+                  <button
+                    key={r.ownerId + r.id}
+                    type="button"
+                    className="lib-received-row"
+                    onClick={() => onOpenReceived?.(r)}
+                  >
+                    <b>{r.name}</b>
+                    <span>
+                      par {r.ownerName || r.ownerEmail} · lecture seule · modifié{' '}
+                      {String(r.updatedAt || '').slice(0, 10)}
+                    </span>
+                  </button>
+                ))}
+              </section>
+            )}
             <section className="project-panel lib-table">
               <div className="lib-row lib-head" role="row">
                 <button
@@ -458,7 +479,7 @@ export default function ProjectLibrary({
                     </details>
                   </div>
                 ))}
-                {!list.length && (
+                {!list.length && !(view === 'shared' && received.length > 0) && (
                   <div className="library-empty">
                     <FolderOpen size={32} />
                     <h3>

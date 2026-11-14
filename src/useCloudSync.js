@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { cloudClient, syncOnce } from './cloud-sync.js';
+import { cloudClient, syncOnce, parse } from './cloud-sync.js';
 
 const AFTER_CHANGE = 5000;
 const EVERY = 2 * 60_000;
@@ -16,6 +16,7 @@ export default function useCloudSync({ api, enabled, onChange, openId }) {
     last: null,
     usage: null,
     notice: '',
+    received: [],
   });
   const fn = useRef({});
   fn.current = { api, onChange, openId };
@@ -48,6 +49,9 @@ export default function useCloudSync({ api, enabled, onChange, openId }) {
         if (!result.retry && !result.changedLocal) break;
       }
       const first = result.errors[0];
+      // What other accounts shared with me; best effort, never blocks the sync.
+      const received = await cloud.sharedIndex().catch(() => null);
+      if (received) patch({ received });
       patch({
         status: first ? 'error' : 'idle',
         error: first ? first.message : '',
@@ -128,10 +132,24 @@ export default function useCloudSync({ api, enabled, onChange, openId }) {
       await refresh();
     },
     syncNow: sync,
+    shares: (id) => cloud.shares(id),
+    addShare: (id, email) => cloud.addShare(id, email),
+    removeShare: (id, email) => cloud.removeShare(id, email),
+    // Downloads a project somebody shared with me and returns it in the shape SharedView reads.
+    async openReceived(entry) {
+      const project = await parse(await cloud.downloadShared(entry));
+      return {
+        kind: 'share',
+        id: project.id,
+        project: { ...project, missing: [] },
+        comments: Array.isArray(project.comments) ? project.comments : [],
+        from: entry.ownerName || entry.ownerEmail,
+      };
+    },
     async logout() {
       await cloud.logout().catch(() => {});
       user.current = null;
-      patch({ user: null, status: 'signedout', error: '', usage: null });
+      patch({ user: null, status: 'signedout', error: '', usage: null, received: [] });
     },
     async deleteAccount() {
       await cloud.deleteAccount();
