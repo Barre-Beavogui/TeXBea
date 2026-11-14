@@ -4857,3 +4857,14 @@ button.link:hover,
     top: calc(100% + 6px);
   }
 }
+
+.lib-table {
+  overflow: visible;
+  min-height: 260px;
+}
+.lib-table .lib-head {
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+.lib-table .project-panel-footer {
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+}
