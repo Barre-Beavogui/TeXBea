@@ -8,6 +8,7 @@ import {
 } from '../src/project-tools.js';
 import { compilers, effectiveCompiler, isCompiler } from '../src/compilers.js';
 import { cleanComment, mergeComments } from '../src/share.js';
+import { sanitizeProfile, publicUser, generateRecoveryKey, personalizeProjectFiles } from '../src/accounts.js';
 import express from 'express';
 import crypto from 'crypto';
 import fs from 'fs';
@@ -148,41 +149,167 @@ const BODY_LIMIT = Number(process.env.TEXBEA_BODY_LIMIT_MB) || Math.ceil(MAX_PRO
 app.use(express.json({ limit: BODY_LIMIT + 'mb' }));
 app.get('/api/health', (_, res) => res.json({ ok: true, engine: process.env.LATEX_ENGINE || 'latexmk' }));
 app.post('/api/auth/register', async (req, res) => {
-  const { email, password, name } = req.body || {};
-  if (!email || !password || password.length < 6)
-    return res.status(400).json({ error: 'Email et mot de passe (6 caractères minimum) requis' });
-  const d = await db();
-  if (d.users.some((u) => u.email.toLowerCase() === email.toLowerCase()))
-    return res.status(409).json({ error: 'Compte déjà existant' });
-  const h = hash(password);
-  const u = { id: id(), email, name: name || email.split('@')[0], ...h, createdAt: new Date().toISOString() };
-  d.users.push(u);
-  const p = {
-    id: id(),
-    ownerId: u.id,
-    name: 'Mon premier projet',
-    main: 'main.tex',
-    files: { 'main.tex': starter, 'references.bib': '% Bibliographie TeXBea\n' },
-    updatedAt: new Date().toISOString(),
-    history: [],
-  };
-  d.projects.push(p);
-  await save(d);
-  const token = crypto.randomBytes(32).toString('hex');
-  sessions.set(token, u.id);
-  res.json({ token, user: { id: u.id, email: u.email, name: u.name }, project: p });
+  try {
+    const { email, password } = req.body || {};
+    if (!email || !password || String(password).length < 6)
+      return res.status(400).json({ error: 'Email et mot de passe (6 caractères minimum) requis' });
+    const d = await db();
+    if (d.users.some((u) => u.email.toLowerCase() === String(email).trim().toLowerCase()))
+      return res.status(409).json({ error: 'Compte déjà existant avec cet email' });
+    const profile = sanitizeProfile(req.body || {});
+    const h = hash(String(password));
+    const recoveryKey = generateRecoveryKey();
+    const rec = hash(recoveryKey.replace(/[^A-Z0-9]/gi, '').toUpperCase());
+    const now = new Date().toISOString();
+    const u = {
+      id: id(),
+      ...profile,
+      ...h,
+      recoverySalt: rec.salt,
+      recoveryHash: rec.hash,
+      createdAt: now,
+      updatedAt: now,
+      lastLoginAt: now,
+    };
+    d.users.push(u);
+    const p = {
+      id: id(),
+      ownerId: u.id,
+      name: 'Mon premier projet',
+      main: 'main.tex',
+      compiler: u.defaultCompiler || 'pdflatex',
+      files: personalizeProjectFiles({ 'main.tex': starter, 'references.bib': '% Bibliographie TeXBea\n' }, u),
+      updatedAt: now,
+      history: [],
+    };
+    d.projects.push(p);
+    await save(d);
+    const token = crypto.randomBytes(32).toString('hex');
+    sessions.set(token, u.id);
+    res.json({ token, user: publicUser(u), recoveryKey, project: p });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
 });
 app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body || {};
   const d = await db();
-  const u = d.users.find((x) => x.email.toLowerCase() === (email || '').toLowerCase());
+  const u = d.users.find(
+    (x) =>
+      x.email.toLowerCase() ===
+      String(email || '')
+        .trim()
+        .toLowerCase(),
+  );
   if (!u) return res.status(401).json({ error: 'Identifiants invalides' });
-  const h = hash(password || '', u.salt).hash;
+  const h = hash(String(password || ''), u.salt).hash;
   if (!crypto.timingSafeEqual(Buffer.from(h), Buffer.from(u.hash)))
     return res.status(401).json({ error: 'Identifiants invalides' });
+  u.lastLoginAt = new Date().toISOString();
+  await save(d);
   const token = crypto.randomBytes(32).toString('hex');
   sessions.set(token, u.id);
-  res.json({ token, user: { id: u.id, email: u.email, name: u.name } });
+  res.json({ token, user: publicUser(u) });
+});
+app.post('/api/auth/recover', async (req, res) => {
+  const { email, recoveryKey, newPassword } = req.body || {};
+  if (!email || !recoveryKey || !newPassword || String(newPassword).length < 6)
+    return res.status(400).json({ error: 'Email, clé de récupération et nouveau mot de passe (6 car. min.) requis' });
+  const d = await db();
+  const u = d.users.find((x) => x.email.toLowerCase() === String(email).trim().toLowerCase());
+  if (!u || !u.recoveryHash || !u.recoverySalt)
+    return res.status(401).json({ error: 'Clé de récupération ou email invalide' });
+  const normalizedKey = String(recoveryKey)
+    .replace(/[^A-Z0-9]/gi, '')
+    .toUpperCase();
+  const check = hash(normalizedKey, u.recoverySalt).hash;
+  if (!crypto.timingSafeEqual(Buffer.from(check), Buffer.from(u.recoveryHash)))
+    return res.status(401).json({ error: 'Clé de récupération invalide' });
+  const nextHash = hash(String(newPassword));
+  const nextRecoveryKey = generateRecoveryKey();
+  const nextRec = hash(nextRecoveryKey.replace(/[^A-Z0-9]/gi, '').toUpperCase());
+  u.salt = nextHash.salt;
+  u.hash = nextHash.hash;
+  u.recoverySalt = nextRec.salt;
+  u.recoveryHash = nextRec.hash;
+  u.updatedAt = new Date().toISOString();
+  await save(d);
+  const token = crypto.randomBytes(32).toString('hex');
+  sessions.set(token, u.id);
+  res.json({ token, user: publicUser(u), recoveryKey: nextRecoveryKey });
+});
+app.get('/api/auth/me', auth, async (req, res) => {
+  const d = await db();
+  const u = d.users.find((x) => x.id === req.userId);
+  if (!u) return res.status(401).json({ error: 'Session expirée' });
+  res.json({ user: publicUser(u) });
+});
+app.put('/api/auth/profile', auth, async (req, res) => {
+  try {
+    const d = await db();
+    const u = d.users.find((x) => x.id === req.userId);
+    if (!u) return res.status(404).json({ error: 'Compte introuvable' });
+    const nextProfile = sanitizeProfile(req.body || {}, u);
+    if (
+      nextProfile.email &&
+      nextProfile.email !== u.email.toLowerCase() &&
+      d.users.some((x) => x.id !== u.id && x.email.toLowerCase() === nextProfile.email)
+    ) {
+      return res.status(409).json({ error: 'Cet email est déjà utilisé par un autre compte' });
+    }
+    Object.assign(u, nextProfile, { updatedAt: new Date().toISOString() });
+    await save(d);
+    res.json({ user: publicUser(u) });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+app.post('/api/auth/password', auth, async (req, res) => {
+  const { currentPassword, newPassword } = req.body || {};
+  if (!currentPassword || !newPassword || String(newPassword).length < 6)
+    return res.status(400).json({ error: 'Mot de passe actuel et nouveau mot de passe (6 car. min.) requis' });
+  const d = await db();
+  const u = d.users.find((x) => x.id === req.userId);
+  if (!u) return res.status(404).json({ error: 'Compte introuvable' });
+  const check = hash(String(currentPassword), u.salt).hash;
+  if (!crypto.timingSafeEqual(Buffer.from(check), Buffer.from(u.hash)))
+    return res.status(401).json({ error: 'Mot de passe actuel incorrect' });
+  const next = hash(String(newPassword));
+  u.salt = next.salt;
+  u.hash = next.hash;
+  u.updatedAt = new Date().toISOString();
+  await save(d);
+  res.json({ ok: true });
+});
+app.post('/api/auth/recovery-key', auth, async (req, res) => {
+  const { password } = req.body || {};
+  const d = await db();
+  const u = d.users.find((x) => x.id === req.userId);
+  if (!u) return res.status(404).json({ error: 'Compte introuvable' });
+  const check = hash(String(password || ''), u.salt).hash;
+  if (!crypto.timingSafeEqual(Buffer.from(check), Buffer.from(u.hash)))
+    return res.status(401).json({ error: 'Mot de passe incorrect' });
+  const recoveryKey = generateRecoveryKey();
+  const rec = hash(recoveryKey.replace(/[^A-Z0-9]/gi, '').toUpperCase());
+  u.recoverySalt = rec.salt;
+  u.recoveryHash = rec.hash;
+  u.updatedAt = new Date().toISOString();
+  await save(d);
+  res.json({ recoveryKey });
+});
+app.delete('/api/auth/account', auth, async (req, res) => {
+  const { password } = req.body || {};
+  const d = await db();
+  const u = d.users.find((x) => x.id === req.userId);
+  if (!u) return res.status(404).json({ error: 'Compte introuvable' });
+  const check = hash(String(password || ''), u.salt).hash;
+  if (!crypto.timingSafeEqual(Buffer.from(check), Buffer.from(u.hash)))
+    return res.status(401).json({ error: 'Mot de passe incorrect' });
+  d.users = d.users.filter((x) => x.id !== u.id);
+  d.projects = d.projects.filter((p) => p.ownerId !== u.id);
+  for (const [t, uid] of sessions) if (uid === u.id) sessions.delete(t);
+  await save(d);
+  res.json({ ok: true });
 });
 app.post('/api/auth/logout', auth, (req, res) => {
   for (const [t, u] of sessions) if (u === req.userId) sessions.delete(t);
@@ -249,8 +376,14 @@ app.get('/api/projects', auth, async (req, res) => {
 app.post('/api/projects', auth, async (req, res) => {
   try {
     const d = await db();
+    const u = d.users.find((x) => x.id === req.userId);
     const input = req.body || {};
-    const data = validateProject(input.files ? input : templateProject(input.template, input));
+    const raw = input.files ? input : templateProject(input.template, input);
+    if (!input.files && u) {
+      raw.files = personalizeProjectFiles(raw.files, u);
+      if (!raw.compiler && u.defaultCompiler) raw.compiler = u.defaultCompiler;
+    }
+    const data = validateProject(raw);
     const p = { ...data, id: id(), ownerId: req.userId, updatedAt: new Date().toISOString(), history: [] };
     d.projects.push(p);
     await save(d);

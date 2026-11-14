@@ -10,15 +10,63 @@ import {
 import { isCompiler } from './compilers.js';
 import { defaultStore, storageFull } from './browser-store.js';
 import { cleanComment, mergeComments } from './share.js';
+import {
+  sanitizeProfile,
+  publicUser,
+  generateRecoveryKey,
+  hashSecretBrowser,
+  personalizeProjectFiles,
+} from './accounts.js';
+
+const ACCOUNTS_KEY = 'texbea-accounts-v1';
+const SESSIONS_KEY = 'texbea-sessions-v1';
+let memoryAccounts = { users: [], sessions: {} };
+
+function loadAccounts() {
+  try {
+    if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+      const users = JSON.parse(localStorage.getItem(ACCOUNTS_KEY) || '[]');
+      const sessions = JSON.parse(localStorage.getItem(SESSIONS_KEY) || '{}');
+      return {
+        users: Array.isArray(users) ? users : [],
+        sessions: sessions && typeof sessions === 'object' ? sessions : {},
+      };
+    }
+  } catch {}
+  return memoryAccounts;
+}
+
+function saveAccounts({ users, sessions }) {
+  memoryAccounts = { users, sessions };
+  try {
+    if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+      localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(users));
+      localStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions));
+    }
+  } catch {}
+}
+
 let store;
 // Lets the tests choose where projects live.
 export function useStore(s) {
   store = s;
+  memoryAccounts = { users: [], sessions: {} };
 }
 const uid = () => crypto.randomUUID();
-function make(input) {
-  const data = validateProject(input.files ? input : templateProject(input.template, input));
-  return { ...data, id: uid(), updatedAt: new Date().toISOString(), history: [] };
+function make(input, user = null) {
+  const raw = input.files ? input : templateProject(input.template, input);
+  if (!input.files && user) {
+    raw.files = personalizeProjectFiles(raw.files, user);
+    if (!raw.compiler && user.defaultCompiler) raw.compiler = user.defaultCompiler;
+  }
+  const data = validateProject(raw);
+  return {
+    ...data,
+    id: uid(),
+    ...(user?.id ? { ownerId: user.id } : {}),
+    updatedAt: new Date().toISOString(),
+    history: [],
+  };
 }
 // Copy handed to the interface: strings are immutable, so sharing them is safe and avoids copying large images.
 // Versions keep their images on this side only (the history panel compares sources).
@@ -66,16 +114,178 @@ async function run(path, opt) {
     throw Object.assign(new Error(error), { status, data: { error } });
   };
   const parts = path.split('/').filter(Boolean);
+  const acct = loadAccounts();
+  const token =
+    (opt.headers?.Authorization || opt.headers?.authorization || '').replace('Bearer ', '') ||
+    (typeof window !== 'undefined' && typeof localStorage !== 'undefined'
+      ? localStorage.getItem('tn_token') || ''
+      : '');
+  const currentUserId = token ? acct.sessions[token] : null;
+  const currentUser = currentUserId ? acct.users.find((u) => u.id === currentUserId) || null : null;
+  const owns = (p) => !currentUser || !p.ownerId || p.ownerId === currentUser.id;
+
+  if (parts[0] === 'auth') {
+    const action = parts[1];
+    if (action === 'accounts' && method === 'GET') {
+      return { accounts: acct.users.map(publicUser) };
+    }
+    if (action === 'register' && method === 'POST') {
+      const { email, password } = body;
+      if (!email || !password || String(password).length < 6)
+        fail('Email et mot de passe (6 caractères minimum) requis', 400);
+      const normEmail = String(email).trim().toLowerCase();
+      if (acct.users.some((u) => u.email.toLowerCase() === normEmail)) fail('Compte déjà existant avec cet email', 409);
+      const profile = sanitizeProfile(body);
+      const h = await hashSecretBrowser(String(password));
+      const recoveryKey = generateRecoveryKey();
+      const rec = await hashSecretBrowser(recoveryKey.replace(/[^A-Z0-9]/gi, '').toUpperCase());
+      const now = new Date().toISOString();
+      const u = {
+        id: uid(),
+        ...profile,
+        ...h,
+        recoverySalt: rec.salt,
+        recoveryHash: rec.hash,
+        createdAt: now,
+        updatedAt: now,
+        lastLoginAt: now,
+      };
+      const isFirstAccount = acct.users.length === 0;
+      acct.users.push(u);
+      // Attach pre-existing guest projects to the first account created on this device.
+      if (isFirstAccount) {
+        for (const p of db) {
+          if (!p.ownerId) {
+            p.ownerId = u.id;
+            p.files = personalizeProjectFiles(p.files, u);
+          }
+        }
+      }
+      let userProject = db.find((p) => p.ownerId === u.id && !p.deleted);
+      if (!userProject) {
+        userProject = make({ name: 'Mon premier projet' }, u);
+        db.push(userProject);
+      }
+      const newToken = uid() + uid().replace(/-/g, '');
+      acct.sessions[newToken] = u.id;
+      saveAccounts(acct);
+      await store.save(db);
+      return { token: newToken, user: publicUser(u), recoveryKey, project: publicCopy(userProject) };
+    }
+    if (action === 'login' && method === 'POST') {
+      const { email, password } = body;
+      const u = acct.users.find(
+        (x) =>
+          x.email.toLowerCase() ===
+          String(email || '')
+            .trim()
+            .toLowerCase(),
+      );
+      if (!u) fail('Identifiants invalides', 401);
+      const check = await hashSecretBrowser(String(password || ''), u.salt);
+      if (check.hash !== u.hash) fail('Identifiants invalides', 401);
+      u.lastLoginAt = new Date().toISOString();
+      const newToken = uid() + uid().replace(/-/g, '');
+      acct.sessions[newToken] = u.id;
+      saveAccounts(acct);
+      return { token: newToken, user: publicUser(u) };
+    }
+    if (action === 'recover' && method === 'POST') {
+      const { email, recoveryKey, newPassword } = body;
+      if (!email || !recoveryKey || !newPassword || String(newPassword).length < 6)
+        fail('Email, clé de récupération et nouveau mot de passe (6 car. min.) requis', 400);
+      const u = acct.users.find((x) => x.email.toLowerCase() === String(email).trim().toLowerCase());
+      if (!u || !u.recoveryHash || !u.recoverySalt) fail('Clé de récupération ou email invalide', 401);
+      const normKey = String(recoveryKey)
+        .replace(/[^A-Z0-9]/gi, '')
+        .toUpperCase();
+      const check = await hashSecretBrowser(normKey, u.recoverySalt);
+      if (check.hash !== u.recoveryHash) fail('Clé de récupération invalide', 401);
+      const nextHash = await hashSecretBrowser(String(newPassword));
+      const nextRecoveryKey = generateRecoveryKey();
+      const nextRec = await hashSecretBrowser(nextRecoveryKey.replace(/[^A-Z0-9]/gi, '').toUpperCase());
+      u.salt = nextHash.salt;
+      u.hash = nextHash.hash;
+      u.recoverySalt = nextRec.salt;
+      u.recoveryHash = nextRec.hash;
+      u.updatedAt = new Date().toISOString();
+      const newToken = uid() + uid().replace(/-/g, '');
+      acct.sessions[newToken] = u.id;
+      saveAccounts(acct);
+      return { token: newToken, user: publicUser(u), recoveryKey: nextRecoveryKey };
+    }
+    if (action === 'logout' && method === 'POST') {
+      if (token) delete acct.sessions[token];
+      saveAccounts(acct);
+      return { ok: true };
+    }
+    if (!currentUser) fail('Session requise', 401);
+    if (action === 'me' && method === 'GET') {
+      return { user: publicUser(currentUser) };
+    }
+    if (action === 'profile' && method === 'PUT') {
+      const nextProfile = sanitizeProfile(body, currentUser);
+      if (
+        nextProfile.email &&
+        nextProfile.email !== currentUser.email.toLowerCase() &&
+        acct.users.some((x) => x.id !== currentUser.id && x.email.toLowerCase() === nextProfile.email)
+      ) {
+        fail('Cet email est déjà utilisé par un autre compte', 409);
+      }
+      Object.assign(currentUser, nextProfile, { updatedAt: new Date().toISOString() });
+      saveAccounts(acct);
+      return { user: publicUser(currentUser) };
+    }
+    if (action === 'password' && method === 'POST') {
+      const { currentPassword, newPassword } = body;
+      if (!currentPassword || !newPassword || String(newPassword).length < 6)
+        fail('Mot de passe actuel et nouveau mot de passe (6 car. min.) requis', 400);
+      const check = await hashSecretBrowser(String(currentPassword), currentUser.salt);
+      if (check.hash !== currentUser.hash) fail('Mot de passe actuel incorrect', 401);
+      const next = await hashSecretBrowser(String(newPassword));
+      currentUser.salt = next.salt;
+      currentUser.hash = next.hash;
+      currentUser.updatedAt = new Date().toISOString();
+      saveAccounts(acct);
+      return { ok: true };
+    }
+    if (action === 'recovery-key' && method === 'POST') {
+      const { password } = body;
+      const check = await hashSecretBrowser(String(password || ''), currentUser.salt);
+      if (check.hash !== currentUser.hash) fail('Mot de passe incorrect', 401);
+      const recoveryKey = generateRecoveryKey();
+      const rec = await hashSecretBrowser(recoveryKey.replace(/[^A-Z0-9]/gi, '').toUpperCase());
+      currentUser.recoverySalt = rec.salt;
+      currentUser.recoveryHash = rec.hash;
+      currentUser.updatedAt = new Date().toISOString();
+      saveAccounts(acct);
+      return { recoveryKey };
+    }
+    if (action === 'account' && method === 'DELETE') {
+      const { password } = body;
+      const check = await hashSecretBrowser(String(password || ''), currentUser.salt);
+      if (check.hash !== currentUser.hash) fail('Mot de passe incorrect', 401);
+      acct.users = acct.users.filter((x) => x.id !== currentUser.id);
+      for (const [k, v] of Object.entries(acct.sessions)) if (v === currentUser.id) delete acct.sessions[k];
+      saveAccounts(acct);
+      db = db.filter((p) => p.ownerId !== currentUser.id);
+      if (!db.length) db = [make({ name: 'Mon premier projet' })];
+      await store.save(db);
+      return { ok: true };
+    }
+    fail('Action indisponible', 404);
+  }
+
   let result;
   if (parts[0] === 'backup' && method === 'GET') {
     // Everything, versions' images included: the copies share their (immutable) strings.
-    return db.map((p) => ({ ...p, assets: { ...(p.assets || {}) }, history: [...(p.history || [])] }));
+    return db.filter(owns).map((p) => ({ ...p, assets: { ...(p.assets || {}) }, history: [...(p.history || [])] }));
   } else if (parts[0] === 'restore' && method === 'POST') {
     // A project already here in the same state is skipped, so restoring the same backup twice adds nothing.
     let added = 0,
       skipped = 0;
     for (const input of body.projects || []) {
-      const same = db.find((p) => p.id === input.id);
+      const same = db.find((p) => owns(p) && p.id === input.id);
       if (same && same.updatedAt === input.updatedAt) {
         skipped++;
         continue;
@@ -84,6 +294,7 @@ async function run(path, opt) {
       db.push({
         ...data,
         id: same || !input.id ? uid() : input.id,
+        ...(currentUser?.id ? { ownerId: currentUser.id } : {}),
         name: same ? `${data.name} (sauvegarde)`.slice(0, 80) : data.name,
         deleted: !!input.deleted,
         updatedAt: input.updatedAt || new Date().toISOString(),
@@ -120,10 +331,10 @@ async function run(path, opt) {
     result = { ok: true };
   } else if (parts[0] === 'projects' && parts.length === 1) {
     if (method === 'POST') {
-      result = make(body);
+      result = make(body, currentUser);
       db.push(result);
     } else
-      result = db.map((p) => ({
+      result = db.filter(owns).map((p) => ({
         id: p.id,
         name: p.name,
         main: p.main,
@@ -133,7 +344,7 @@ async function run(path, opt) {
         fileCount: Object.keys(p.files).length + Object.keys(p.assets || {}).length,
       }));
   } else if (parts[0] === 'projects') {
-    const p = db.find((p) => p.id === parts[1]);
+    const p = db.find((p) => owns(p) && p.id === parts[1]);
     if (!p) fail('Projet introuvable', 404);
     p.assets = p.assets || {};
     p.history = p.history || [];

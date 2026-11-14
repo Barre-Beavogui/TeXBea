@@ -11,11 +11,14 @@ import { prepareImage } from './image-input.js';
 import { loadSettings, saveSettings } from './settings.js';
 import { demoApi } from './demo-api.js';
 import { registerOffline } from './pwa.js';
-import { readHash, commentLine, authorName } from './share.js';
+import { readHash, commentLine, authorName, setAuthorName } from './share.js';
 import CommentsPanel from './CommentsPanel.jsx';
 import TrackChangesPanel from './TrackChangesPanel.jsx';
 import VisualModal from './VisualModal.jsx';
 import BibImportDialog from './BibImportDialog.jsx';
+import AuthScreen from './AuthScreen.jsx';
+import ProfileModal from './ProfileModal.jsx';
+import { userInitials } from './accounts.js';
 import { findTrackedChanges, wrapTrackedChange, ensureChangesPreamble } from './track-changes.js';
 import { appendBibEntry } from './bib-import.js';
 import SharedView from './SharedView.jsx';
@@ -70,74 +73,20 @@ async function api(path, opt = {}) {
     markChanged();
     globalThis.dispatchEvent?.(new Event('texbea-changed'));
   }
-  if (DEMO) return demoApi(path, opt);
   const token = localStorage.tn_token;
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(opt.headers || {}),
+  };
+  if (DEMO) return demoApi(path, { ...opt, headers });
   const r = await fetch(API + path, {
     ...opt,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(opt.headers || {}),
-    },
+    headers,
   });
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw Object.assign(new Error(j.error || `Erreur ${r.status}`), { data: j, status: r.status });
   return j;
-}
-function Auth({ onAuth }) {
-  const [register, setRegister] = useState(false),
-    [form, setForm] = useState({ name: '', email: 'demo@texbea.local', password: 'demo123' }),
-    [err, setErr] = useState('');
-  async function go(e) {
-    e.preventDefault();
-    setErr('');
-    try {
-      const j = await api('/auth/' + (register ? 'register' : 'login'), { method: 'POST', body: JSON.stringify(form) });
-      localStorage.tn_token = j.token;
-      onAuth(j);
-    } catch (e) {
-      setErr(e.message);
-    }
-  }
-  return (
-    <div className="auth">
-      <div className="authbox">
-        <div className="biglogo">
-          B<span>·</span>
-        </div>
-        <h1>
-          TeX<em>Bea</em>
-        </h1>
-        <p>Un espace LaTeX moderne, prêt pour tes futures innovations.</p>
-        <form onSubmit={go}>
-          {register && (
-            <input placeholder="Nom" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-          )}
-          <input
-            type="email"
-            required
-            placeholder="Email"
-            value={form.email}
-            onChange={(e) => setForm({ ...form, email: e.target.value })}
-          />
-          <input
-            type="password"
-            required
-            minLength="6"
-            placeholder="Mot de passe"
-            value={form.password}
-            onChange={(e) => setForm({ ...form, password: e.target.value })}
-          />
-          {err && <div className="error">{err}</div>}
-          <button>{register ? 'Créer mon espace' : 'Se connecter'}</button>
-        </form>
-        <button className="link" onClick={() => setRegister(!register)}>
-          {register ? 'Déjà un compte ? Se connecter' : 'Première visite ? Créer un compte'}
-        </button>
-        <small>Astuce : crée un compte local lors de la première utilisation.</small>
-      </div>
-    </div>
-  );
 }
 const outlineDepth = { part: 0, chapter: 1, section: 2, subsection: 3, subsubsection: 4, frame: 3 };
 // Offset range of a 1-based line, to place the cursor from a log entry or the outline.
@@ -195,6 +144,8 @@ function App() {
     [revisionsOpen, setRevisionsOpen] = useState(false),
     [visualOpen, setVisualOpen] = useState(null),
     [bibImportOpen, setBibImportOpen] = useState(false),
+    [profileOpen, setProfileOpen] = useState(false),
+    [authModalOpen, setAuthModalOpen] = useState(false),
     [peers, setPeers] = useState([]),
     [shareOpen, setShareOpen] = useState(false),
     wsRef = useRef(null),
@@ -294,13 +245,24 @@ function App() {
     setLog('');
   }
   useEffect(() => {
-    if (DEMO) {
-      setUser({ name: 'Essai local' });
-      loadProjects();
-    } else if (localStorage.tn_token) {
-      setUser({ name: 'Workspace' });
-      loadProjects();
+    async function initAuth() {
+      if (localStorage.tn_token) {
+        try {
+          const r = await api('/auth/me');
+          setUser(r.user);
+          if (r.user?.name) setAuthorName(r.user.name);
+          await loadProjects();
+          return;
+        } catch {
+          localStorage.removeItem('tn_token');
+        }
+      }
+      if (DEMO && localStorage.texbea_guest === 'true') {
+        setUser({ name: 'Invité', guest: true });
+        await loadProjects();
+      }
     }
+    initAuth();
     openLinkInHash();
     window.addEventListener('hashchange', openLinkInHash);
     return () => window.removeEventListener('hashchange', openLinkInHash);
@@ -992,14 +954,20 @@ function App() {
     a.click();
     URL.revokeObjectURL(u);
   }
-  function logout() {
-    if (DEMO) {
-      notify('Espace d’essai sans compte serveur');
-      return;
-    }
+  async function logout() {
+    try {
+      await api('/auth/logout', { method: 'POST' });
+    } catch {}
     localStorage.removeItem('tn_token');
+    localStorage.removeItem('texbea_guest');
+    setProfileOpen(false);
     setUser(null);
     setProject(null);
+    setLibrary(true);
+  }
+  function openProfileOrAuth() {
+    if (user?.guest) setAuthModalOpen(true);
+    else setProfileOpen(true);
   }
   if (shared)
     return (
@@ -1022,13 +990,28 @@ function App() {
         )}
       </>
     );
-  if (!user)
+  if (!user || authModalOpen)
     return (
-      <Auth
+      <AuthScreen
+        api={api}
+        demo={DEMO}
+        onClose={user ? () => setAuthModalOpen(false) : null}
         onAuth={(j) => {
+          setAuthModalOpen(false);
           setUser(j.user);
+          if (j.user?.name) setAuthorName(j.user.name);
           loadProjects(j.project?.id);
         }}
+        onGuest={
+          DEMO
+            ? () => {
+                localStorage.texbea_guest = 'true';
+                setAuthModalOpen(false);
+                setUser({ name: 'Invité', guest: true });
+                loadProjects();
+              }
+            : null
+        }
       />
     );
   if (library)
@@ -1036,6 +1019,7 @@ function App() {
       <>
         <ProjectLibrary
           projects={projects}
+          user={user}
           onOpen={openFromLibrary}
           onNew={newProject}
           onAction={projectAction}
@@ -1043,9 +1027,27 @@ function App() {
           onRestore={restoreBackup}
           autoBackup={autoBackup}
           cloudSync={cloudSync}
+          onProfile={openProfileOrAuth}
+          onLogout={logout}
           storageKey={storageKey}
           mode={DEMO}
         />
+        {profileOpen && !user.guest && (
+          <ProfileModal
+            user={user}
+            projects={projects}
+            api={api}
+            demo={DEMO}
+            onUpdateUser={(u) => {
+              setUser(u);
+              if (u?.name) setAuthorName(u.name);
+            }}
+            onBackup={backupAll}
+            onLogout={logout}
+            onClose={() => setProfileOpen(false)}
+            notify={notify}
+          />
+        )}
         {createOpen && (
           <NewProjectDialog
             initialSource={createOpen}
@@ -1177,6 +1179,16 @@ function App() {
           </button>
           <button className="icon" aria-label="Réglages" title="Réglages" onClick={() => setSettingsOpen(true)}>
             <Settings size={16} />
+          </button>
+          <button
+            type="button"
+            className="top-avatar-btn"
+            onClick={openProfileOrAuth}
+            title={user?.guest ? 'Se connecter / Créer un compte' : `Profil : ${user?.name || 'Mon compte'}`}
+            aria-label="Mon profil"
+            style={{ background: user?.avatarColor || '#1f3a60' }}
+          >
+            {userInitials(user)}
           </button>
           <button className="icon logout" aria-label="Se déconnecter" title="Se déconnecter" onClick={logout}>
             <LogOut size={16} />
@@ -1650,6 +1662,22 @@ function App() {
       )}
       {settingsOpen && (
         <SettingsDialog settings={settings} onChange={updateSettings} onClose={() => setSettingsOpen(false)} />
+      )}
+      {profileOpen && !user.guest && (
+        <ProfileModal
+          user={user}
+          projects={projects}
+          api={api}
+          demo={DEMO}
+          onUpdateUser={(u) => {
+            setUser(u);
+            if (u?.name) setAuthorName(u.name);
+          }}
+          onBackup={backupAll}
+          onLogout={logout}
+          onClose={() => setProfileOpen(false)}
+          notify={notify}
+        />
       )}
       {toast && (
         <div className="toast">

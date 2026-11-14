@@ -16,9 +16,12 @@ import {
   RotateCcw,
   MonitorDown,
   WifiOff,
+  User,
+  LogOut,
 } from 'lucide-react';
 import StorageStatus from './StorageStatus.jsx';
 import { useAppStatus } from './pwa.js';
+import { userInitials } from './accounts.js';
 export function Brand() {
   return (
     <div className="brand">
@@ -36,6 +39,7 @@ export function Brand() {
 }
 export default function ProjectLibrary({
   projects,
+  user,
   onOpen,
   onNew,
   onAction,
@@ -43,6 +47,8 @@ export default function ProjectLibrary({
   onRestore,
   autoBackup,
   cloudSync,
+  onProfile,
+  onLogout,
   storageKey,
   mode,
 }) {
@@ -84,12 +90,40 @@ export default function ProjectLibrary({
             <MonitorDown size={15} /> Installer l’app
           </button>
         )}
-        <div className="account-chip">B</div>
+        <div className="library-account-bar">
+          <button
+            type="button"
+            className="account-profile-btn"
+            onClick={onProfile}
+            title={user?.guest ? 'Créer un compte ou se connecter' : 'Mon profil et mes paramètres de compte'}
+          >
+            <span className="account-chip" style={{ background: user?.avatarColor || '#1f3a60' }}>
+              {user?.guest ? <User size={15} /> : userInitials(user)}
+            </span>
+            <span className="account-meta">
+              <b>{user?.guest ? 'Se connecter / S’inscrire' : user?.name || 'Mon compte'}</b>
+              {user?.institution && <small>{user.institution}</small>}
+            </span>
+          </button>
+          {!user?.guest && onLogout && (
+            <button
+              type="button"
+              className="icon account-logout-btn"
+              title="Se déconnecter"
+              aria-label="Se déconnecter"
+              onClick={onLogout}
+            >
+              <LogOut size={16} />
+            </button>
+          )}
+        </div>
       </header>
       <div className="library-content">
         <div className="library-title">
           <div>
-            <div className="eyebrow">TON ESPACE DE TRAVAIL</div>
+            <div className="eyebrow">
+              {user && !user.guest ? `ESPACE DE ${user.name.toUpperCase()}` : 'TON ESPACE DE TRAVAIL'}
+            </div>
             <h1>
               Des idées aux <em>pages.</em>
             </h1>
