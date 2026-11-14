@@ -102,6 +102,7 @@ export default function SharedView({ shared, settings, onCopy, onExit, notify })
           <span className="shared-badge">
             <Eye size={13} /> Lecture seule
           </span>
+          {shared.from && <small className="shared-from">Partagé par {shared.from}</small>}
           <b>{project.name}</b>
         </div>
         <div className="grow" />

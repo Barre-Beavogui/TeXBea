@@ -130,11 +130,27 @@ export function cloudClient(fetchImpl = (...a) => fetch(...a)) {
       return joinChunks(parts);
     },
     remove: (id, base) => json('POST', `/sync/projects/${id}/remove`, { body: { base } }),
+    shares: async (id) => (await json('GET', `/sync/projects/${id}/shares`)).shares,
+    addShare: (id, email) => json('POST', `/sync/projects/${id}/shares`, { body: { email } }),
+    removeShare: (id, email) => json('POST', `/sync/projects/${id}/shares/remove`, { body: { email } }),
+    sharedIndex: async () => (await json('GET', '/shared/index')).projects,
+    async downloadShared(entry) {
+      const parts = [];
+      for (let i = 0; i < entry.chunks; i++)
+        parts.push(
+          new Uint8Array(
+            await (
+              await call('GET', `/shared/projects/${entry.ownerId}/${entry.id}/uploads/${entry.uploadId}/${i}`)
+            ).arrayBuffer(),
+          ),
+        );
+      return joinChunks(parts);
+    },
   };
 }
 
 const serialize = (p) => gzip(JSON.stringify({ v: 1, project: p }));
-async function parse(bytes) {
+export async function parse(bytes) {
   const data = JSON.parse(await gunzip(bytes));
   if (!data?.project?.id) throw Error('Données cloud illisibles.');
   return data.project;

@@ -298,3 +298,52 @@ test('deleting the account erases everything', async () => {
     assert.equal(s.env.DB.raw.prepare(`SELECT COUNT(*) c FROM ${t}`).get().c, 0, t);
   assert.equal((await s.call('GET', '/api/sync/index')).status, 401);
 });
+test('sharing by e-mail: only the invited account reads, owner can revoke, deletion cleans up', async () => {
+  const a = setup();
+  const sentA = await signIn(a, 'a@example.com');
+  assert.equal((await upload(a, 'p1', [bytes(4, 7), bytes(2, 8)], 0)).status, 200);
+  const b = setup();
+  b.env.DB = a.env.DB;
+  await signIn(b, 'b@example.com');
+  const c = setup();
+  c.env.DB = a.env.DB;
+  await signIn(c, 'c@example.com');
+  const upId = a.env.DB.raw.prepare('SELECT upload_id u FROM projects').get().u;
+  const share = (body, id = 'p1') => a.call('POST', `/api/sync/projects/${id}/shares`, { body });
+  // Validation: bad address, self, unknown project.
+  assert.equal((await share({ email: 'nope' })).status, 400);
+  assert.equal((await share({ email: 'A@example.com' })).status, 400);
+  assert.equal((await share({ email: 'b@example.com' }, 'missing')).status, 404);
+  // Invite (case-insensitive), twice is harmless, a notice is sent once.
+  const before = sentA.length;
+  assert.equal((await share({ email: ' B@Example.com ' })).status, 200);
+  assert.equal((await share({ email: 'b@example.com' })).status, 200);
+  assert.equal(a.env.DB.raw.prepare('SELECT COUNT(*) c FROM shares').get().c, 1);
+  assert.equal(sentA.length, before + 1);
+  assert.equal((await (await a.call('GET', '/api/sync/projects/p1/shares')).json()).shares[0].email, 'b@example.com');
+  // The recipient sees it and can download it; others cannot.
+  const recv = (await (await b.call('GET', '/api/shared/index')).json()).projects;
+  assert.equal(recv.length, 1);
+  assert.deepEqual([recv[0].id, recv[0].ownerEmail, recv[0].chunks], ['p1', 'a@example.com', 2]);
+  const url = `/api/shared/projects/${recv[0].ownerId}/p1/uploads/${upId}`;
+  const chunk = new Uint8Array(await (await b.call('GET', url + '/1')).arrayBuffer());
+  assert.deepEqual([...chunk], [8, 8]);
+  assert.equal((await (await c.call('GET', '/api/shared/index')).json()).projects.length, 0);
+  assert.equal((await c.call('GET', url + '/0')).status, 404);
+  // The recipient cannot manage shares of someone else's project.
+  assert.equal(
+    (await b.call('POST', '/api/sync/projects/p1/shares', { body: { email: 'c@example.com' } })).status,
+    404,
+  );
+  // Revoking removes access.
+  await a.call('POST', '/api/sync/projects/p1/shares/remove', { body: { email: 'b@example.com' } });
+  assert.equal((await (await b.call('GET', '/api/shared/index')).json()).projects.length, 0);
+  assert.equal((await b.call('GET', url + '/0')).status, 404);
+  // Shares disappear with either account.
+  await share({ email: 'b@example.com' });
+  assert.equal((await b.call('DELETE', '/api/auth/account')).status, 200);
+  assert.equal(a.env.DB.raw.prepare('SELECT COUNT(*) c FROM shares').get().c, 0);
+  await share({ email: 'c@example.com' });
+  assert.equal((await a.call('DELETE', '/api/auth/account')).status, 200);
+  assert.equal(a.env.DB.raw.prepare('SELECT COUNT(*) c FROM shares').get().c, 0);
+});
