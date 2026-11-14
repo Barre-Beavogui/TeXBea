@@ -14,6 +14,7 @@ import { providerEnabled, startOAuth, finishOAuth, clearStateCookie } from './oa
 import { emailEnabled, requestCode, checkCode } from './email.js';
 import * as sync from './sync.js';
 import * as share from './share.js';
+import { compileRemote, compileEnabled } from './compile.js';
 
 const clientIp = (request) => request.headers.get('cf-connecting-ip') || 'unknown';
 
@@ -37,6 +38,7 @@ async function route(request, env, url, parts) {
         github: providerEnabled(env, 'github'),
         google: providerEnabled(env, 'google'),
         email: emailEnabled(env),
+        compile: compileEnabled(env),
       });
     if (parts[1] === 'me' && method === 'GET') {
       const user = await currentUser(env, request);
@@ -104,6 +106,8 @@ async function route(request, env, url, parts) {
       if (parts[3] === 'remove' && method === 'POST') return sync.remove(env, user, id, await readBody(request));
     }
   }
+  if (parts[0] === 'compile' && !parts[1] && method === 'POST')
+    return compileRemote(env, await requireUser(env, request), request);
   if (parts[0] === 'shared') {
     const user = await requireUser(env, request);
     if (parts[1] === 'index' && method === 'GET') return share.received(env, user);

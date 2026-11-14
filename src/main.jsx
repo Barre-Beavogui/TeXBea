@@ -4,6 +4,7 @@ import { documentOutline } from './latex-analysis.js';
 import ProjectLibrary, { Brand } from './ProjectLibrary.jsx';
 import { findSourceLocation, searchablePhrases } from './source-navigation.js';
 import { compileInBrowser, cancelCompile } from './browser-compiler.js';
+import { compileOnServer } from './remote-compile.js';
 import { compilers, effectiveCompiler, magicProgram, needsUnicodeEngine } from './compilers.js';
 import { parseLatexLog } from './log-parser.js';
 import { actionById, targetFor, lineWindow } from './ai-actions.js';
@@ -426,9 +427,22 @@ function App() {
       const engine = effectiveCompiler(current);
       if (engine === 'pdflatex' && needsUnicodeEngine(currentFiles) && !auto)
         notify('fontspec / polyglossia demandent XeLaTeX ou LuaLaTeX : change le compilateur dans le menu à gauche.');
-      const j = DEMO
-        ? await compileInBrowser(current, setCompilePhase, engine)
-        : await api(`/projects/${project.id}/compile`, { method: 'POST' });
+      // Opt-in: compile on the isolated server (any engine, no heavy download). Falls back to the browser if it is down.
+      const onServer = DEMO && settings.serverCompile && cloudSync.providers?.compile && !!cloudSync.user;
+      let j;
+      if (onServer) {
+        setCompilePhase('Compilation sur le serveur…');
+        try {
+          j = await compileOnServer(current, engine);
+        } catch (e) {
+          if (e.data || ![0, 429, 502, 503].includes(e.status ?? 0)) throw e;
+          notify(e.message + ' Compilation dans le navigateur.');
+        }
+      }
+      if (!j)
+        j = DEMO
+          ? await compileInBrowser(current, setCompilePhase, engine)
+          : await api(`/projects/${project.id}/compile`, { method: 'POST' });
       setPdf(j.url + (DEMO ? '' : '?token=' + encodeURIComponent(localStorage.tn_token)));
       setLog(j.log || '');
       if (!auto) {
@@ -1730,7 +1744,12 @@ function App() {
         <WordCountDialog files={currentFiles} main={project.main} onClose={() => setWordCountOpen(false)} />
       )}
       {settingsOpen && (
-        <SettingsDialog settings={settings} onChange={updateSettings} onClose={() => setSettingsOpen(false)} />
+        <SettingsDialog
+          settings={settings}
+          onChange={updateSettings}
+          onClose={() => setSettingsOpen(false)}
+          serverCompile={DEMO && !!cloudSync.providers?.compile && !!cloudSync.user}
+        />
       )}
       {profileOpen && !user.guest && (
         <ProfileModal
