@@ -1018,6 +1018,7 @@ function App() {
         api={api}
         demo={DEMO}
         onClose={user ? () => setAuthModalOpen(false) : null}
+        onBack={DEMO && !user ? () => setLandingDone(false) : null}
         onAuth={(j) => {
           setAuthModalOpen(false);
           setUser(j.user);
