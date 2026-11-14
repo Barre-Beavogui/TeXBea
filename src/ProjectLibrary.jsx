@@ -6,8 +6,6 @@ import {
   FileText,
   Clock3,
   FolderOpen,
-  BookOpen,
-  ChevronRight,
   Upload,
   MoreHorizontal,
   Copy,
@@ -74,238 +72,225 @@ export default function ProjectLibrary({
     email: cloudUser.email,
     avatar: cloudUser.avatar,
   };
-  const signedName = cloudWho?.name || (user && !user.guest ? user.name : '');
   const recent = projects
     .filter((p) => !p.deleted)
     .sort((a, b) => Date.parse(b.updatedAt || 0) - Date.parse(a.updatedAt || 0))[0];
   function date(value) {
     return value ? new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium' }).format(new Date(value)) : '—';
   }
+  const active = projects.filter((p) => !p.deleted).length;
+  const trashed = projects.length - active;
+  const owner = cloudWho?.name || (user && !user.guest ? user.name : 'Moi');
   return (
-    <div className="library">
-      <header className="library-header">
-        <Brand />
-        <div className="library-tabs">
-          <span className="active">Mes projets</span>
-          <span className="library-mode">{mode ? 'Espace personnel · dans ce navigateur' : 'Mon atelier'}</span>
-        </div>
-        {mode && !app.online && (
-          <span className="offline-chip" title="Les paquets LaTeX déjà utilisés restent disponibles">
-            <WifiOff size={14} /> Hors ligne
-          </span>
-        )}
-        {mode && app.canInstall && (
-          <button className="install-app" onClick={app.install}>
-            <MonitorDown size={15} /> Installer l’app
-          </button>
-        )}
-        <div className="library-account-bar">
-          {cloudWho ? (
-            <div className="account-profile-btn account-static" title={'Connecté avec ' + cloudWho.email}>
-              <span className="account-chip" style={{ background: '#1f3a60' }}>
-                {cloudWho.avatar ? (
-                  <img src={cloudWho.avatar} alt="" referrerPolicy="no-referrer" />
-                ) : (
-                  userInitials(cloudWho)
-                )}
-              </span>
-              <span className="account-meta">
-                <b>{cloudWho.name}</b>
-                <small>{cloudWho.email}</small>
-              </span>
-            </div>
-          ) : (
-            <button
-              type="button"
-              className="account-profile-btn"
-              onClick={onProfile}
-              title={user?.guest ? 'Créer un compte ou se connecter' : 'Mon profil et mes paramètres de compte'}
-            >
-              <span className="account-chip" style={{ background: user?.avatarColor || '#1f3a60' }}>
-                {user?.guest ? <User size={15} /> : userInitials(user)}
-              </span>
-              <span className="account-meta">
-                <b>{user?.guest ? 'Se connecter / S’inscrire' : user?.name || 'Mon compte'}</b>
-                {user?.institution && <small>{user.institution}</small>}
-              </span>
+    <div className="library lib">
+      <aside className="lib-side">
+        <div className="lib-side-nav">
+          <Brand />
+          <nav className="lib-nav" aria-label="Bibliothèque">
+            <button type="button" className={!trash ? 'on' : ''} onClick={() => setTrash(false)}>
+              <FileText size={17} /> Tous les projets <em>{active}</em>
             </button>
-          )}
-          {(cloudWho || !user?.guest) && onLogout && (
-            <button
-              type="button"
-              className="icon account-logout-btn"
-              title="Se déconnecter"
-              aria-label="Se déconnecter"
-              onClick={onLogout}
-            >
-              <LogOut size={16} />
+            <button type="button" className={trash ? 'on' : ''} onClick={() => setTrash(true)}>
+              <Trash2 size={17} /> Corbeille <em>{trashed}</em>
             </button>
-          )}
+            <button type="button" onClick={() => onNew('import')}>
+              <Upload size={17} /> Importer .zip / .tex
+            </button>
+          </nav>
         </div>
-      </header>
-      <div className="library-content">
-        <div className="library-title">
-          <div>
-            <div className="eyebrow">
-              {signedName ? `ESPACE DE ${signedName.toUpperCase()}` : 'TON ESPACE DE TRAVAIL'}
-            </div>
-            <h1>
-              Des idées aux <em>pages.</em>
-            </h1>
-            <p>Retrouve tes documents et reprends le fil de ton travail.</p>
+        <div className="lib-side-extra">
+          {recent && (
+            <section className="resume-card">
+              <div className="resume-label">
+                <Clock3 size={16} /> REPRENDRE
+              </div>
+              <h2>{recent.name}</h2>
+              <p>Modifié le {date(recent.updatedAt)}</p>
+              <button onClick={() => onOpen(recent.id)}>
+                Ouvrir l’atelier <FolderOpen size={17} />
+              </button>
+            </section>
+          )}
+          <StorageStatus
+            projects={projects}
+            browser={mode}
+            onBackup={onBackup}
+            onRestore={onRestore}
+            auto={autoBackup}
+            cloud={cloudSync}
+            refreshKey={storageKey}
+          />
+          <div className="library-account-bar lib-account">
+            {cloudWho ? (
+              <div className="account-profile-btn account-static" title={'Connecté avec ' + cloudWho.email}>
+                <span className="account-chip" style={{ background: '#1f3a60' }}>
+                  {cloudWho.avatar ? (
+                    <img src={cloudWho.avatar} alt="" referrerPolicy="no-referrer" />
+                  ) : (
+                    userInitials(cloudWho)
+                  )}
+                </span>
+                <span className="account-meta">
+                  <b>{cloudWho.name}</b>
+                  <small>{cloudWho.email}</small>
+                </span>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className="account-profile-btn"
+                onClick={onProfile}
+                title={user?.guest ? 'Créer un compte ou se connecter' : 'Mon profil et mes paramètres de compte'}
+              >
+                <span className="account-chip" style={{ background: user?.avatarColor || '#1f3a60' }}>
+                  {user?.guest ? <User size={15} /> : userInitials(user)}
+                </span>
+                <span className="account-meta">
+                  <b>{user?.guest ? 'Se connecter / S’inscrire' : user?.name || 'Mon compte'}</b>
+                  {user?.institution && <small>{user.institution}</small>}
+                </span>
+              </button>
+            )}
+            {(cloudWho || !user?.guest) && onLogout && (
+              <button
+                type="button"
+                className="icon account-logout-btn"
+                title="Se déconnecter"
+                aria-label="Se déconnecter"
+                onClick={onLogout}
+              >
+                <LogOut size={16} />
+              </button>
+            )}
           </div>
+        </div>
+      </aside>
+      <main className="lib-main">
+        <div className="lib-top">
+          <span className="library-mode">{mode ? 'Espace personnel · dans ce navigateur' : 'Mon atelier'}</span>
+          {mode && !app.online && (
+            <span className="offline-chip" title="Les paquets LaTeX déjà utilisés restent disponibles">
+              <WifiOff size={14} /> Hors ligne
+            </span>
+          )}
+          {mode && app.canInstall && (
+            <button className="install-app" onClick={app.install}>
+              <MonitorDown size={15} /> Installer l’app
+            </button>
+          )}
+        </div>
+        <h1 className="lib-title">{trash ? 'Corbeille' : 'Tous les projets'}</h1>
+        <div className="lib-tools">
+          <label className="library-search">
+            <Search size={18} />
+            <input
+              aria-label="Rechercher un projet"
+              placeholder="Rechercher dans tous les projets…"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+          </label>
           <button className="primary new-project" onClick={onNew}>
             <Plus size={18} /> Nouveau projet
           </button>
         </div>
-        <div className="library-grid">
-          <section className="project-panel">
-            <div className="library-v3-tools">
-              <div>
-                <button className={!trash ? 'active' : ''} onClick={() => setTrash(false)}>
-                  Projets actifs
-                </button>
-                <button className={trash ? 'active' : ''} onClick={() => setTrash(true)}>
-                  Corbeille ({projects.filter((p) => p.deleted).length})
-                </button>
-              </div>
-              <button onClick={() => onNew('import')}>
-                <Upload size={16} />
-                Importer .zip / .tex
-              </button>
-            </div>
-            <div className="project-controls">
-              <label className="library-search">
-                <Search size={18} />
-                <input
-                  aria-label="Rechercher un projet"
-                  placeholder="Rechercher un projet…"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                />
-              </label>
-              <select aria-label="Trier les projets" value={sort} onChange={(e) => setSort(e.target.value)}>
-                <option value="recent">Plus récents</option>
-                <option value="name">Nom A–Z</option>
-              </select>
-            </div>
-            <div className="project-table-title">
-              <h2>
-                {trash ? 'Corbeille' : 'Tous les projets'}{' '}
-                <span>{projects.filter((p) => !!p.deleted === trash).length}</span>
-              </h2>
-              <span>Dernière modification</span>
-            </div>
-            <div className="project-list">
-              {list.map((p, i) => (
-                <div className="project-list-entry" key={p.id}>
-                  <button className="project-row" disabled={trash} onClick={() => onOpen(p.id)}>
+        <section className="project-panel lib-table">
+          <div className="lib-row lib-head" role="row">
+            <button
+              type="button"
+              className={sort === 'name' ? 'on' : ''}
+              onClick={() => setSort('name')}
+              aria-label="Trier par titre"
+            >
+              Titre {sort === 'name' && '↑'}
+            </button>
+            <span>Propriétaire</span>
+            <button
+              type="button"
+              className={sort === 'recent' ? 'on' : ''}
+              onClick={() => setSort('recent')}
+              aria-label="Trier par date"
+            >
+              Dernière modification {sort === 'recent' && '↓'}
+            </button>
+            <span className="lib-head-menu" />
+          </div>
+          <div className="project-list">
+            {list.map((p, i) => (
+              <div className="project-list-entry" key={p.id}>
+                <button className="project-row lib-row" disabled={trash} onClick={() => onOpen(p.id)}>
+                  <span className="project-name">
                     <span className={'project-symbol tone-' + (i % 3)}>
-                      <FileText size={20} />
+                      <FileText size={18} />
                     </span>
-                    <span className="project-name">
+                    <span>
                       <b>{p.name}</b>
                       <small>
                         {p.fileCount || 0} fichier{p.fileCount > 1 ? 's' : ''} · LaTeX
                       </small>
                     </span>
-                    <time dateTime={p.updatedAt}>{date(p.updatedAt)}</time>
-                    <ChevronRight size={17} />
-                  </button>
-                  <details className="project-menu">
-                    <summary aria-label={'Actions pour ' + p.name}>
-                      <MoreHorizontal size={18} />
-                    </summary>
-                    <div>
-                      {(trash
-                        ? [
-                            ['restore', 'Restaurer', RotateCcw],
-                            ['remove', 'Supprimer définitivement', Trash2],
-                          ]
-                        : [
-                            ['rename', 'Renommer', Pencil],
-                            ['duplicate', 'Dupliquer', Copy],
-                            ['export', 'Exporter ZIP', Download],
-                            ['trash', 'Mettre à la corbeille', Trash2],
-                          ]
-                      ).map(([action, label, Icon]) => (
-                        <button
-                          key={action}
-                          onClick={(e) => {
-                            e.currentTarget.closest('details').open = false;
-                            onAction(action, p.id);
-                          }}
-                        >
-                          <Icon size={15} />
-                          {label}
-                        </button>
-                      ))}
-                    </div>
-                  </details>
-                </div>
-              ))}
-              {!list.length && (
-                <div className="library-empty">
-                  <FolderOpen size={32} />
-                  <h3>{query ? 'Aucun résultat' : 'Ton premier projet commence ici'}</h3>
-                  <p>{query ? 'Essaie un autre nom.' : 'Crée un projet pour ouvrir l’éditeur LaTeX.'}</p>
-                  {!query && <button onClick={onNew}>Créer un projet</button>}
-                </div>
-              )}
-            </div>
-            <footer className="project-panel-footer">
-              <span>
-                {list.length} projet{list.length > 1 ? 's' : ''}
-              </span>
-              <span>Un espace pour tes idées.</span>
-            </footer>
-          </section>
-          <aside className="library-aside">
-            {recent && (
-              <section className="resume-card">
-                <div className="resume-label">
-                  <Clock3 size={16} /> REPRENDRE
-                </div>
-                <div className="document-mark" aria-hidden="true">
-                  <FileText size={48} strokeWidth={1} />
-                </div>
-                <h2>{recent.name}</h2>
-                <p>Modifié le {date(recent.updatedAt)}</p>
-                <button onClick={() => onOpen(recent.id)}>
-                  Ouvrir l’atelier <FolderOpen size={17} />
+                  </span>
+                  <span className="lib-owner">{owner}</span>
+                  <time dateTime={p.updatedAt}>{date(p.updatedAt)}</time>
                 </button>
-              </section>
+                <details className="project-menu">
+                  <summary aria-label={'Actions pour ' + p.name}>
+                    <MoreHorizontal size={18} />
+                  </summary>
+                  <div>
+                    {(trash
+                      ? [
+                          ['restore', 'Restaurer', RotateCcw],
+                          ['remove', 'Supprimer définitivement', Trash2],
+                        ]
+                      : [
+                          ['rename', 'Renommer', Pencil],
+                          ['duplicate', 'Dupliquer', Copy],
+                          ['export', 'Exporter ZIP', Download],
+                          ['trash', 'Mettre à la corbeille', Trash2],
+                        ]
+                    ).map(([action, label, Icon]) => (
+                      <button
+                        key={action}
+                        onClick={(e) => {
+                          e.currentTarget.closest('details').open = false;
+                          onAction(action, p.id);
+                        }}
+                      >
+                        <Icon size={15} />
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </details>
+              </div>
+            ))}
+            {!list.length && (
+              <div className="library-empty">
+                <FolderOpen size={32} />
+                <h3>
+                  {query ? 'Aucun résultat' : trash ? 'La corbeille est vide' : 'Ton premier projet commence ici'}
+                </h3>
+                <p>
+                  {query
+                    ? 'Essaie un autre nom.'
+                    : trash
+                      ? 'Les projets supprimés apparaissent ici.'
+                      : 'Crée un projet pour ouvrir l’éditeur LaTeX.'}
+                </p>
+                {!query && !trash && <button onClick={onNew}>Créer un projet</button>}
+              </div>
             )}
-            <StorageStatus
-              projects={projects}
-              browser={mode}
-              onBackup={onBackup}
-              onRestore={onRestore}
-              auto={autoBackup}
-              cloud={cloudSync}
-              refreshKey={storageKey}
-            />
-            <section className="workspace-note">
-              <BookOpen size={21} />
-              <h3>Ton atelier, ton rythme.</h3>
-              <p>Écris en LaTeX, compile ton PDF et retrouve le code d’un double-clic sur le texte.</p>
-              <small>
-                {mode
-                  ? 'Les projets sont conservés dans ce navigateur. « Tout sauvegarder » les met tous dans un seul ZIP, versions comprises.'
-                  : 'Les projets sont sauvegardés dans ton espace.'}
-              </small>
-            </section>
-            <div className="library-stat">
-              <b>{projects.reduce((n, p) => n + (p.fileCount || 0), 0)}</b>
-              <span>fichiers dans ton atelier</span>
-            </div>
-          </aside>
-        </div>
-        <footer className="library-footer">
-          <span>TeXbea</span>
-          <span>Écrire. Comprendre. Transmettre.</span>
-        </footer>
-      </div>
+          </div>
+          <footer className="project-panel-footer">
+            <span>
+              {list.length} projet{list.length > 1 ? 's' : ''} · {projects.reduce((n, p) => n + (p.fileCount || 0), 0)}{' '}
+              fichiers
+            </span>
+            <span>Écrire. Comprendre. Transmettre.</span>
+          </footer>
+        </section>
+      </main>
     </div>
   );
 }
