@@ -43,7 +43,13 @@ export function validateJob(body) {
   if (!safeName(body?.main) || !/\.tex$/i.test(body.main)) throw new JobError(400, 'Fichier principal invalide.');
   if (files.length + assets.length > LIMITS.files) throw new JobError(413, 'Trop de fichiers.');
   let total = 0;
-  const out = { main: body.main, compiler: body.compiler, files: [], assets: [] };
+  const out = {
+    main: body.main,
+    compiler: body.compiler,
+    files: [],
+    assets: [],
+    timeoutSec: Number(body.timeoutSec) || 0,
+  };
   for (const [name, content] of files) {
     if (!safeName(name) || typeof content !== 'string') throw new JobError(400, `Fichier invalide : ${name}`);
     total += content.length;
@@ -161,7 +167,11 @@ export async function compile(body, env = process.env) {
     }
     // Sub-directories must be writable too (auxiliary files are written next to the sources).
     await openUp(dir);
-    const result = await run(command(job, dir, env), dir, Number(env.JOB_TIMEOUT_MS) || LIMITS.timeoutMs);
+    // The plan asks for a time limit; the operator's own maximum always wins.
+    const cap = Number(env.JOB_TIMEOUT_MAX_MS) || 240_000;
+    const asked = job.timeoutSec > 0 ? job.timeoutSec * 1000 : LIMITS.timeoutMs;
+    const timeout = Number(env.JOB_TIMEOUT_MS) || Math.min(asked, cap);
+    const result = await run(command(job, dir, env), dir, timeout);
     const log = result.out.slice(-LIMITS.logChars);
     const pdfPath = path.join(dir, job.main.replace(/\.tex$/i, '') + '.pdf');
     let pdf = null;

@@ -180,6 +180,9 @@ test('checkout session creation, webhook signature verification, plan upgrade an
     assert.equal(idxPro.usage.plan, 'pro');
     assert.equal(idxPro.usage.quota, 2000);
 
+    // Already subscribed: a second Checkout is refused (it would bill twice).
+    assert.equal((await s.call('POST', '/api/billing/checkout', { body: { plan: 'standard' } })).status, 409);
+
     // Customer portal works now that cus_marie_1 is linked.
     const portal = await s.call('POST', '/api/billing/portal', { body: {} });
     assert.equal(portal.status, 200);

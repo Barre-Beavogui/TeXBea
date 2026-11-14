@@ -334,7 +334,9 @@ function CloudRow({ cloud, date }) {
             <Mini
               onClick={() => {
                 if (
-                  confirm('Supprimer ton compte et toutes les copies en ligne ? Tes projets restent dans ce navigateur.')
+                  confirm(
+                    'Supprimer ton compte et toutes les copies en ligne ? Tes projets restent dans ce navigateur.',
+                  )
                 )
                   cloud.deleteAccount().catch((e) => alert(e.message));
               }}

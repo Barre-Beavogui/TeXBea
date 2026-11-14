@@ -30,9 +30,8 @@ export const PLANS = {
     compileTimeoutSec: 120,
     features: [
       '2 Go de sauvegarde cloud synchronisée (10× plus)',
-      'Compilation serveur rapide (XeLaTeX, LuaLaTeX, Biber)',
-      'Suivi des modifications (Révisions) & Historique étendu',
-      'Import bibliographique DOI / arXiv / Crossref illimité',
+      'Compilation sur le serveur : pdfLaTeX, XeLaTeX, LuaLaTeX, Biber (120 s)',
+      'Partage par e-mail avec d’autres comptes TeXBea',
     ],
   },
   pro: {
@@ -45,9 +44,8 @@ export const PLANS = {
     compileTimeoutSec: 240,
     features: [
       '10 Go de sauvegarde cloud synchronisée (50× plus)',
-      'Compilation serveur prioritaire longue durée (thèses & livres TikZ)',
-      'Toutes les fonctions Standard + collaboration avancée',
-      'Support prioritaire TeXBea',
+      'Compilation sur le serveur jusqu’à 240 s (thèses, figures TikZ lourdes)',
+      'Toutes les fonctions Standard',
     ],
   },
 };
@@ -189,6 +187,13 @@ export async function createCheckout(env, user, url, body) {
   const priceId = priceIdForPlan(env, plan);
   if (!priceId || !env.STRIPE_SECRET_KEY) throw new HttpError(503, 'Cette offre n’est pas encore activée sur Stripe.');
 
+  // Already subscribed: a second Checkout would bill twice. Plan changes and cancellations go through the portal.
+  const current = await getSubscription(env, user.id);
+  if (current.plan !== 'free')
+    throw new HttpError(
+      409,
+      'Tu as déjà un abonnement : utilise « Gérer l’abonnement » pour le modifier ou l’arrêter.',
+    );
   const existing = await env.DB.prepare('SELECT stripe_customer_id AS cid FROM subscriptions WHERE user_id = ?')
     .bind(user.id)
     .first()
