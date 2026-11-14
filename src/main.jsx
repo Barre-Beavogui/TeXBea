@@ -17,6 +17,7 @@ import TrackChangesPanel from './TrackChangesPanel.jsx';
 import VisualModal from './VisualModal.jsx';
 import BibImportDialog from './BibImportDialog.jsx';
 import AuthScreen from './AuthScreen.jsx';
+import Landing from './Landing.jsx';
 import ProfileModal from './ProfileModal.jsx';
 import { userInitials } from './accounts.js';
 import { findTrackedChanges, wrapTrackedChange, ensureChangesPreamble } from './track-changes.js';
@@ -146,6 +147,8 @@ function App() {
     [bibImportOpen, setBibImportOpen] = useState(false),
     [profileOpen, setProfileOpen] = useState(false),
     [authModalOpen, setAuthModalOpen] = useState(false),
+    [authReady, setAuthReady] = useState(false),
+    [landingDone, setLandingDone] = useState(false),
     [peers, setPeers] = useState([]),
     [shareOpen, setShareOpen] = useState(false),
     wsRef = useRef(null),
@@ -246,6 +249,13 @@ function App() {
   }
   useEffect(() => {
     async function initAuth() {
+      try {
+        await restoreSession();
+      } finally {
+        setAuthReady(true);
+      }
+    }
+    async function restoreSession() {
       if (localStorage.tn_token) {
         try {
           const r = await api('/auth/me');
@@ -989,6 +999,18 @@ function App() {
           </div>
         )}
       </>
+    );
+  if (DEMO && !authReady && !user) return null;
+  if (DEMO && !user && !landingDone)
+    return (
+      <Landing
+        onOpen={() => {
+          localStorage.texbea_guest = 'true';
+          setUser({ name: 'Invité', guest: true });
+          loadProjects();
+        }}
+        onLogin={() => setLandingDone(true)}
+      />
     );
   if (!user || authModalOpen)
     return (
