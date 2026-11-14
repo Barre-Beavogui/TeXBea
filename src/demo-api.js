@@ -51,7 +51,8 @@ async function run(path, opt) {
   try {
     db = await store.load();
     if (!db) {
-      db = [make({ name: 'Mon premier projet' })];
+      // `pristine`: the starter project nobody touched yet, which the cloud must not copy to every new device.
+      db = [{ ...make({ name: 'Mon premier projet' }), pristine: true }];
       created = true;
     }
     if (!Array.isArray(db)) throw Error();
@@ -92,6 +93,31 @@ async function run(path, opt) {
       added++;
     }
     result = { added, skipped };
+  } else if (parts[0] === 'sync' && parts[1] === 'export' && method === 'GET') {
+    // One whole project, versions' images included, for the cloud copy.
+    const p = db.find((p) => p.id === parts[2]);
+    if (!p) fail('Projet introuvable', 404);
+    return { ...p, assets: { ...(p.assets || {}) }, history: [...(p.history || [])] };
+  } else if (parts[0] === 'sync' && parts[1] === 'apply' && method === 'POST') {
+    // A project coming from the cloud replaces the local one with the same id, keeping its id and date as they are.
+    const input = body.project || {};
+    if (!input.id || typeof input.id !== 'string') fail('Projet invalide');
+    const data = validateProject(input);
+    const next = {
+      ...data,
+      id: input.id,
+      deleted: !!input.deleted,
+      updatedAt: input.updatedAt || new Date().toISOString(),
+      history: (input.history || []).slice(-20),
+      comments: input.comments || [],
+    };
+    const at = db.findIndex((p) => p.id === next.id);
+    if (at >= 0) db[at] = next;
+    else db.push(next);
+    result = { ok: true };
+  } else if (parts[0] === 'sync' && parts[1] === 'remove' && method === 'POST') {
+    db = db.filter((p) => p.id !== body.id);
+    result = { ok: true };
   } else if (parts[0] === 'projects' && parts.length === 1) {
     if (method === 'POST') {
       result = make(body);
@@ -103,6 +129,7 @@ async function run(path, opt) {
         main: p.main,
         updatedAt: p.updatedAt,
         deleted: !!p.deleted,
+        pristine: !!p.pristine,
         fileCount: Object.keys(p.files).length + Object.keys(p.assets || {}).length,
       }));
   } else if (parts[0] === 'projects') {
@@ -204,7 +231,10 @@ async function run(path, opt) {
         Object.keys(s.files).find((n) => n.endsWith('.tex'));
       result = p;
     } else fail('Action indisponible', 404);
-    if (method !== 'GET') p.updatedAt = new Date().toISOString();
+    if (method !== 'GET') {
+      p.updatedAt = new Date().toISOString();
+      delete p.pristine;
+    }
   } else fail('Action indisponible', 404);
   if ((opt.method || 'GET') !== 'GET' || created)
     try {
