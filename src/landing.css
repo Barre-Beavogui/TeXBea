@@ -1,11 +1,11 @@
 .lp {
-  --ink: #1f2933;
-  --paper: #f6f7f7;
-  --line: #d8dcdc;
-  --text: #1c2733;
-  --muted: #566474;
-  --copper: #0e6b5c;
-  --copper-d: #0a574a;
+  --ink: #1f2328;
+  --paper: #f6f5f2;
+  --line: #e4e1db;
+  --text: #1f2328;
+  --muted: #5a6069;
+  --copper: #c2502b;
+  --copper-d: #a9431f;
   font-family: Inter, system-ui, sans-serif;
   color: var(--text);
   background: var(--paper);
@@ -31,7 +31,7 @@
 }
 .lp a:focus-visible,
 .lp button:focus-visible {
-  outline: 3px solid #7fd1b9;
+  outline: 3px solid #f2a07a;
   outline-offset: 2px;
 }
 
@@ -79,7 +79,7 @@
   margin-right: auto;
 }
 .lp-nav nav a {
-  color: #4b5864;
+  color: #5a6069;
   text-decoration: none;
   font-size: 15px;
 }
@@ -130,10 +130,10 @@
 }
 .lp-btn-ghost {
   color: var(--ink);
-  border-color: #9aa4a4;
+  border-color: #d3cfc7;
 }
 .lp-btn-ghost:hover {
-  background: #eceeee;
+  background: #f1efeb;
 }
 
 /* Hero */
@@ -153,7 +153,7 @@
 }
 .lp-hero-text p {
   font-size: 19px;
-  color: #4b5864;
+  color: #5a6069;
   max-width: 34em;
   margin: 22px 0 30px;
 }
@@ -178,7 +178,7 @@
   align-items: stretch;
 }
 .lp-code {
-  background: #1b2329;
+  background: #1f2328;
   border-radius: 10px;
   overflow: hidden;
   font-family: 'JetBrains Mono', ui-monospace, monospace;
@@ -188,13 +188,13 @@
 .lp-code-bar {
   padding: 8px 14px;
   background: rgba(255, 255, 255, 0.06);
-  color: #93a6bc;
+  color: #a7adb6;
 }
 .lp-code ol {
   list-style: none;
   margin: 0;
   padding: 14px;
-  color: #dbe5f0;
+  color: #e6e8eb;
 }
 .lp-code li {
   white-space: pre-wrap;
@@ -210,10 +210,10 @@
   transform: none;
 }
 .lp-cmd {
-  color: #7fd1b9;
+  color: #f2a07a;
 }
 .lp-math {
-  color: #8fd0c4;
+  color: #e8c07a;
 }
 .lp-page {
   background: #fff;
@@ -222,7 +222,7 @@
   padding: 28px 22px;
   min-height: 300px;
   border: 1px solid var(--line);
-  box-shadow: 0 6px 18px rgba(31, 41, 51, 0.12);
+  box-shadow: 0 6px 18px rgba(31, 35, 40, 0.12);
   font-family: 'Source Serif 4', Georgia, serif;
 }
 .lp-page h2 {
@@ -307,9 +307,9 @@
 }
 .lp-tint {
   max-width: none;
-  background: #eceeee;
+  background: #f1efeb;
 }
-.lp-tint > * {
+.lp .lp-tint > * {
   max-width: 1200px;
   margin-left: auto;
   margin-right: auto;
@@ -364,7 +364,7 @@
 .lp-bubble.bea {
   display: flex;
   gap: 8px;
-  background: #eceeee;
+  background: #f1efeb;
 }
 .lp-bubble.bea svg {
   flex: none;
@@ -398,7 +398,7 @@
   border-radius: 4px;
 }
 .lp-pdf mark {
-  background: #d6efe8;
+  background: #fbece5;
   padding: 0 2px;
   margin: 0 4px;
 }
@@ -411,8 +411,8 @@
 .lp-lines {
   font-family: 'JetBrains Mono', monospace;
   font-size: 13px;
-  background: #1b2329;
-  color: #dbe5f0;
+  background: #1f2328;
+  color: #e6e8eb;
   border-radius: 8px;
   padding: 10px 0;
 }
@@ -421,11 +421,11 @@
 }
 .lp-lines em {
   font-style: normal;
-  color: #6c819a;
+  color: #8b9097;
   margin-right: 12px;
 }
 .lp-lines .hit {
-  background: rgba(127, 209, 185, 0.2);
+  background: rgba(242, 160, 122, 0.22);
 }
 .lp-status {
   display: flex;
@@ -436,7 +436,7 @@
 .lp-status svg {
   flex: none;
   margin-top: 3px;
-  color: #0e6b5c;
+  color: #c2502b;
 }
 .lp-status b {
   display: block;
@@ -503,7 +503,7 @@
 .lp-privacy li svg {
   flex: none;
   margin-top: 5px;
-  color: #0e6b5c;
+  color: #c2502b;
 }
 .lp-note {
   margin-top: 28px;
@@ -524,8 +524,8 @@
   margin-bottom: 28px;
 }
 .lp-footer {
-  background: #1b2329;
-  color: #93a6bc;
+  background: #1f2328;
+  color: #a7adb6;
   font-size: 14px;
   padding: 48px clamp(16px, 5vw, 56px) 20px;
 }
@@ -555,7 +555,7 @@
 }
 .lp-footer a,
 .lp-footer nav button {
-  color: #c9d5e3;
+  color: #d3d6db;
   text-decoration: none;
   background: none;
   border: 0;
@@ -703,7 +703,7 @@
   top: -34px;
   background: none;
   border: 0;
-  color: #4b5864;
+  color: #5a6069;
   font: inherit;
   font-size: 13px;
   cursor: pointer;
@@ -734,7 +734,7 @@
 .lp-grid li:hover,
 .lp-mock:hover {
   border-color: var(--copper);
-  box-shadow: 0 6px 18px rgba(31, 41, 51, 0.1);
+  box-shadow: 0 6px 18px rgba(31, 35, 40, 0.1);
 }
 @media (hover: hover) {
   .lp-grid li:hover {
@@ -748,7 +748,7 @@
   transition: background 0.15s;
 }
 .lp-ph.on {
-  background: #d6efe8;
+  background: #fbece5;
 }
 .lp-lines div {
   transition: background 0.15s;
@@ -764,4 +764,16 @@
 .lp-link,
 .lp-burger {
   cursor: pointer;
+}
+
+.lp-privacy li svg,
+.lp-status svg {
+  color: #1f8a52;
+}
+
+.lp-footer .lp-brand {
+  color: #fff;
+}
+.lp-footer .lp-brand b {
+  color: #f2a07a;
 }
