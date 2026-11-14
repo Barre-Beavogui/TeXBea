@@ -692,3 +692,76 @@
 .lp [id] {
   scroll-margin-top: 72px;
 }
+
+/* Mouse help */
+.lp-demo {
+  position: relative;
+}
+.lp-replay {
+  position: absolute;
+  right: 0;
+  top: -34px;
+  background: none;
+  border: 0;
+  color: #4b5864;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  text-decoration: underline;
+}
+.lp-replay:hover {
+  color: var(--ink);
+}
+.lp-nav nav a {
+  padding: 6px 0;
+  border-bottom: 2px solid transparent;
+  transition:
+    border-color 0.15s,
+    color 0.15s;
+}
+.lp-nav nav a.on {
+  color: var(--ink);
+  border-bottom-color: var(--copper);
+}
+.lp-proof li,
+.lp-grid li,
+.lp-mock {
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s,
+    transform 0.15s;
+}
+.lp-grid li:hover,
+.lp-mock:hover {
+  border-color: var(--copper);
+  box-shadow: 0 6px 18px rgba(31, 41, 51, 0.1);
+}
+@media (hover: hover) {
+  .lp-grid li:hover {
+    transform: translateY(-2px);
+  }
+}
+.lp-ph {
+  cursor: pointer;
+  padding: 0 2px;
+  border-radius: 3px;
+  transition: background 0.15s;
+}
+.lp-ph.on {
+  background: #d6efe8;
+}
+.lp-lines div {
+  transition: background 0.15s;
+}
+.lp-link-demo small {
+  color: var(--muted);
+  font-size: 13px;
+}
+.lp-pdf {
+  cursor: default;
+}
+.lp-btn,
+.lp-link,
+.lp-burger {
+  cursor: pointer;
+}
