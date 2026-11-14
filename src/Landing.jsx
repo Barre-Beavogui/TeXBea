@@ -13,6 +13,8 @@ import {
   WifiOff,
   Cpu,
   Check,
+  Menu,
+  X,
 } from 'lucide-react';
 import './landing.css';
 
@@ -111,6 +113,8 @@ const MORE = [
 ];
 
 export default function Landing({ onOpen, onLogin }) {
+  const [menu, setMenu] = useState(false);
+  const close = () => setMenu(false);
   return (
     <div className="lp">
       <header className="lp-nav">
@@ -134,7 +138,30 @@ export default function Landing({ onOpen, onLogin }) {
           <button className="lp-btn lp-btn-primary" onClick={onOpen}>
             Ouvrir l’atelier
           </button>
+          <button
+            className="lp-burger"
+            aria-label={menu ? 'Fermer le menu' : 'Ouvrir le menu'}
+            aria-expanded={menu}
+            onClick={() => setMenu((m) => !m)}
+          >
+            {menu ? <X size={22} /> : <Menu size={22} />}
+          </button>
         </div>
+        {menu && (
+          <div className="lp-menu">
+            <a href="#fonctions" onClick={close}>
+              Fonctions
+            </a>
+            <a href="#et-aussi" onClick={close}>
+              Et aussi
+            </a>
+            <a href="#confidentialite" onClick={close}>
+              Confidentialité
+            </a>
+            <button onClick={onLogin}>Se connecter</button>
+            <button onClick={onOpen}>Ouvrir l’atelier</button>
+          </div>
+        )}
       </header>
 
       <main id="top">
