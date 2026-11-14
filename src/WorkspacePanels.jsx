@@ -297,7 +297,7 @@ const shortcuts = [
   ['Ctrl/Cmd + J', 'Demander à Bea de modifier la sélection'],
 ];
 
-export function SettingsDialog({ settings, onChange, onClose }) {
+export function SettingsDialog({ settings, onChange, onClose, serverCompile }) {
   const set = (key, value) => onChange({ ...settings, [key]: value });
   return (
     <Modal title="Réglages" onClose={onClose}>
@@ -344,12 +344,20 @@ export function SettingsDialog({ settings, onChange, onClose }) {
           ['lineWrapping', 'Retour à la ligne automatique'],
           ['autoCompile', 'Compilation automatique après une pause'],
           ['aiAutoApply', 'Bea applique directement ses corrections (Ctrl/Cmd+Z pour annuler)'],
-        ].map(([key, label]) => (
-          <label key={key} className="settings-check">
-            <input type="checkbox" checked={!!settings[key]} onChange={(e) => set(key, e.target.checked)} />
-            {label}
-          </label>
-        ))}
+        ]
+          .concat(serverCompile ? [['serverCompile', 'Compiler sur le serveur TeXBea (isolé, tous les moteurs)']] : [])
+          .map(([key, label]) => (
+            <label key={key} className="settings-check">
+              <input type="checkbox" checked={!!settings[key]} onChange={(e) => set(key, e.target.checked)} />
+              {label}
+            </label>
+          ))}
+        {serverCompile && (
+          <small className="settings-hint">
+            Tes sources sont envoyées au serveur le temps de la compilation, dans un conteneur sans accès au réseau,
+            puis effacées. Désactivé : tout reste dans ton navigateur.
+          </small>
+        )}
       </div>
       <button className="link" onClick={() => onChange({ ...defaultSettings })}>
         Rétablir les réglages par défaut

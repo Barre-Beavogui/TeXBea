@@ -55,7 +55,7 @@ async function signIn(s, email = 'a@example.com') {
 test('providers only list what is configured', async () => {
   const s = setup({ GOOGLE_CLIENT_ID: undefined });
   const p = await (await s.call('GET', '/api/auth/providers')).json();
-  assert.deepEqual(p, { github: true, google: false, email: false });
+  assert.deepEqual(p, { github: true, google: false, email: false, compile: false });
 });
 test('without D1 the api says it is not configured', async () => {
   const res = await handle(new Request(ORIGIN + '/api/auth/me'), {});
