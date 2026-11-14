@@ -4876,3 +4876,19 @@ button.link:hover,
 .lib-settings {
   max-width: 640px;
 }
+
+.app .brand-home,
+.library .brand-home {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.app .brand-home:hover:not(:disabled),
+.library .brand-home:hover:not(:disabled) {
+  background: transparent;
+  opacity: 0.85;
+}

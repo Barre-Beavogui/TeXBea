@@ -33,9 +33,10 @@ import { cleanTags } from './project-tools.js';
 import StorageStatus from './StorageStatus.jsx';
 import { useAppStatus } from './pwa.js';
 import { userInitials } from './accounts.js';
-export function Brand() {
-  return (
-    <div className="brand">
+// With `onClick` the logo is a button that leads home.
+export function Brand({ onClick, disabled }) {
+  const content = (
+    <>
       <div className="logo" aria-hidden="true">
         <LogoMark size={30} />
       </div>
@@ -45,7 +46,20 @@ export function Brand() {
         </b>
         <small>L’atelier scientifique</small>
       </div>
-    </div>
+    </>
+  );
+  if (!onClick) return <div className="brand">{content}</div>;
+  return (
+    <button
+      type="button"
+      className="brand brand-home"
+      onClick={onClick}
+      disabled={disabled}
+      title="Retour à Tous les projets"
+      aria-label="TeXbea : retour à Tous les projets"
+    >
+      {content}
+    </button>
   );
 }
 const TAGS_KEY = 'texbea-tags';
@@ -201,7 +215,13 @@ export default function ProjectLibrary({
     <div className="library lib">
       <aside className="lib-side">
         <div className="lib-side-nav">
-          <Brand />
+          <Brand
+            onClick={() => {
+              setView('all');
+              setQuery('');
+              window.scrollTo?.(0, 0);
+            }}
+          />
           <nav className="lib-nav" aria-label="Bibliothèque">
             {navItem('all', FileText, 'Tous les projets', count.all)}
             <div className="lib-sep" />

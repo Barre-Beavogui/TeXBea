@@ -1169,7 +1169,7 @@ function App() {
   return (
     <div className={'app mobile-' + mobilePane + (filesOpen ? ' files-open' : '')}>
       <header className="topbar">
-        <Brand />
+        <Brand onClick={returnToLibrary} disabled={busy} />
         <nav className="crumbs" aria-label="Projet">
           <button className="back-projects" onClick={returnToLibrary} disabled={busy}>
             <Folder size={15} /> Mes projets
