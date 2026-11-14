@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <meta name="theme-color" content="#f6f5f2" />
+    <title>Politique de confidentialité — TeXbea</title>
+    <meta name="description" content="Quelles données TeXbea utilise, pourquoi et comment les supprimer." />
+    <link rel="icon" type="image/png" href="/icons/icon-192.png" />
+    <style>
+      :root { --bg:#f6f5f2; --text:#1f2328; --muted:#5a6069; --line:#e4e1db; --accent:#c2502b; }
+      * { box-sizing: border-box; }
+      body { margin:0; background:var(--bg); color:var(--text); font:17px/1.65 Inter, system-ui, -apple-system, 'Segoe UI', sans-serif; }
+      header, main, footer { max-width: 760px; margin: 0 auto; padding: 0 20px; }
+      header { padding-top: 28px; }
+      header a { color: var(--text); text-decoration: none; font: 500 22px Georgia, 'Source Serif 4', serif; }
+      header b { color: var(--accent); }
+      main { padding-top: 24px; padding-bottom: 40px; }
+      h1 { font: 600 clamp(28px, 4vw, 38px)/1.2 Georgia, 'Source Serif 4', serif; margin: 12px 0 8px; }
+      h2 { font: 600 22px/1.3 Georgia, 'Source Serif 4', serif; margin: 36px 0 8px; }
+      p, li { color: var(--text); }
+      .meta { color: var(--muted); font-size: 15px; }
+      ul { padding-left: 22px; }
+      a { color: var(--accent); }
+      table { border-collapse: collapse; width: 100%; font-size: 15px; }
+      th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+      footer { border-top: 1px solid var(--line); padding-top: 18px; padding-bottom: 40px; color: var(--muted); font-size: 14px; display: flex; gap: 16px; flex-wrap: wrap; }
+      @media (max-width: 560px) { body { font-size: 16px; } }
+    </style>
+  </head>
+  <body>
+    <header><a href="/">TeX<b>bea</b></a></header>
+    <main>
+      <h1>Politique de confidentialité</h1>
+      <p class="meta">Dernière mise à jour : 14 novembre 2026</p>
+      <p>
+        TeXbea est un atelier LaTeX qui fonctionne dans ton navigateur. Cette page explique quelles données sont
+        utilisées, pourquoi, et comment les supprimer. Le site est édité par Barre Beavogui (voir les
+        <a href="/mentions-legales.html">mentions légales</a>).
+      </p>
+
+      <h2>Sans compte</h2>
+      <p>
+        Tu peux utiliser TeXbea sans te connecter. Tes projets restent dans ton navigateur et ne sont envoyés à aucun
+        serveur de TeXbea. Le PDF est compilé sur ton appareil et l’assistante Bea s’exécute aussi sur ton appareil.
+        Pour compiler, le navigateur télécharge les paquets LaTeX nécessaires depuis un miroir TeX Live : ce miroir
+        reçoit des noms de paquets, jamais le contenu de ton document.
+      </p>
+
+      <h2>Avec un compte</h2>
+      <p>Tu peux créer un compte avec Google, GitHub ou ton adresse e-mail. Nous recevons alors :</p>
+      <ul>
+        <li>ton adresse e-mail, ton nom et ta photo de profil, tels que les fournit Google ou GitHub ;</li>
+        <li>un identifiant propre au fournisseur de connexion (pour te reconnaître à la prochaine connexion) ;</li>
+        <li>si tu choisis la connexion par e-mail : ton adresse et un code à usage unique, envoyé par e-mail.</li>
+      </ul>
+      <p>
+        Nous ne demandons que l’adresse e-mail et les informations de profil de base. Nous n’accédons ni à tes
+        contacts, ni à tes fichiers Google ou GitHub, ni à tes dépôts.
+      </p>
+      <p>
+        L’utilisation et le transfert, vers n’importe quelle autre application, des informations reçues des API de
+        Google respectent la politique « Google API Services User Data Policy », y compris les exigences d’utilisation
+        limitée. Ces informations servent uniquement à te connecter. Elles ne sont ni vendues, ni utilisées pour de la
+        publicité.
+      </p>
+
+      <h2>Copie en ligne des projets</h2>
+      <p>
+        Quand tu es connecté, tes projets sont copiés sur nos serveurs pour être retrouvés sur tes autres appareils.
+        Ils sont conservés sous forme de fichiers compressés, chiffrés pendant le transfert. Ils ne sont pas chiffrés
+        de bout en bout : seule la personne qui gère le service peut techniquement y accéder, et elle ne les consulte
+        pas. Une limite d’espace s’applique à chaque compte.
+      </p>
+
+      <h2>Cookies et traceurs</h2>
+      <ul>
+        <li>
+          Un cookie de session, indispensable pour rester connecté. Il n’est posé qu’après une connexion et n’est pas
+          lisible par les scripts de la page.
+        </li>
+        <li>Pas de publicité, pas de traceur, pas d’outil de mesure d’audience tiers.</li>
+        <li>
+          Les polices d’écriture sont chargées depuis Google Fonts : Google reçoit à cette occasion l’adresse IP du
+          navigateur.
+        </li>
+      </ul>
+
+      <h2>Prestataires</h2>
+      <table>
+        <tr><th>Prestataire</th><th>Rôle</th></tr>
+        <tr><td>Cloudflare, Inc. (États-Unis)</td><td>Hébergement du site, base de données des comptes et copies de projets</td></tr>
+        <tr><td>Resend (États-Unis)</td><td>Envoi des e-mails contenant les codes de connexion</td></tr>
+        <tr><td>Google, GitHub</td><td>Connexion, si tu choisis ces méthodes</td></tr>
+      </table>
+      <p>
+        Certains prestataires sont situés hors de l’Union européenne. Les transferts reposent sur les mécanismes
+        prévus par le RGPD (clauses contractuelles types ou cadre de protection des données).
+      </p>
+
+      <h2>Durée de conservation</h2>
+      <p>
+        Les données d’un compte sont conservées tant que le compte existe. Quand tu supprimes ton compte, ton profil,
+        tes sessions et tes copies de projets sont effacés de nos serveurs. Les projets enregistrés dans ton navigateur
+        restent chez toi.
+      </p>
+
+      <h2>Tes droits</h2>
+      <p>
+        Tu peux accéder à tes données, les corriger, les exporter (la sauvegarde ZIP de l’application contient tous tes
+        projets), les supprimer ou t’opposer à leur utilisation. Pour supprimer ton compte, utilise l’option prévue
+        dans l’application, ou écris à <a href="mailto:support@texbea.com">support@texbea.com</a>. Pour toute autre
+        demande : <a href="mailto:contact@texbea.com">contact@texbea.com</a>. Tu peux aussi introduire une réclamation
+        auprès de la CNIL (cnil.fr).
+      </p>
+
+      <h2>Modifications</h2>
+      <p>Si cette politique change, la date de mise à jour en haut de page change aussi.</p>
+
+    </main>
+    <footer>
+      <a href="/">Accueil</a>
+      <a href="/confidentialite.html">Confidentialité</a>
+      <a href="/mentions-legales.html">Mentions légales</a>
+      <a href="mailto:contact@texbea.com">contact@texbea.com</a>
+    </footer>
+  </body>
+</html>

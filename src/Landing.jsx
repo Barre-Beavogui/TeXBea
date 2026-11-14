@@ -390,6 +390,8 @@ export default function Landing({ onOpen, onLogin }) {
             <h3>Contact</h3>
             <a href="mailto:contact@texbea.com">contact@texbea.com</a>
             <a href="mailto:support@texbea.com">support@texbea.com</a>
+            <a href="/confidentialite.html">Confidentialité</a>
+            <a href="/mentions-legales.html">Mentions légales</a>
           </nav>
         </div>
         <div className="lp-footer-legal">
