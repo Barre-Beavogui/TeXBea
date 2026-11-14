@@ -52,11 +52,16 @@ function Line({ text }) {
 function Demo() {
   const reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   const [n, setN] = useState(reduced ? SOURCE.length : 0);
+  const [run, setRun] = useState(0);
   useEffect(() => {
     if (reduced) return;
     const t = setInterval(() => setN((v) => (v >= SOURCE.length ? v : v + 1)), 520);
     return () => clearInterval(t);
-  }, [reduced]);
+  }, [reduced, run]);
+  const replay = () => {
+    if (!reduced) setN(0);
+    setRun((r) => r + 1);
+  };
   return (
     <div className="lp-demo" aria-label="Exemple : un fichier LaTeX et le document obtenu">
       <div className="lp-code" aria-hidden="true">
@@ -69,6 +74,9 @@ function Demo() {
           ))}
         </ol>
       </div>
+      <button className="lp-replay" onClick={replay}>
+        Rejouer
+      </button>
       <div
         className="lp-page"
         role="img"
@@ -88,6 +96,39 @@ function Demo() {
           </span>
         </div>
       </div>
+    </div>
+  );
+}
+
+const PDF_LINES = ['Les pertes fer varient avec', 'le carré de la fréquence', 'et l’induction maximale.'];
+
+// Mouse demo: pointing at a phrase of the "PDF" lights up the matching source line.
+function LinkDemo() {
+  const [on, setOn] = useState(1);
+  return (
+    <div className="lp-mock lp-link-demo" aria-label="Exemple : une phrase du PDF correspond à une ligne du code">
+      <div className="lp-pdf" onMouseLeave={() => setOn(1)}>
+        {PDF_LINES.map((t, i) => (
+          <span
+            key={t}
+            className={'lp-ph' + (on === i ? ' on' : '')}
+            tabIndex={0}
+            onMouseEnter={() => setOn(i)}
+            onFocus={() => setOn(i)}
+          >
+            {t}{' '}
+          </span>
+        ))}
+        <MousePointerClick size={20} className="lp-pointer" aria-hidden="true" />
+      </div>
+      <div className="lp-lines">
+        {PDF_LINES.map((t, i) => (
+          <div key={t} className={on === i ? 'hit' : ''}>
+            <em>{41 + i}</em> {t}
+          </div>
+        ))}
+      </div>
+      <small>Passe la souris sur une phrase du PDF.</small>
     </div>
   );
 }
@@ -115,6 +156,18 @@ const MORE = [
 export default function Landing({ onOpen, onLogin }) {
   const [menu, setMenu] = useState(false);
   const close = () => setMenu(false);
+  const [active, setActive] = useState('');
+  useEffect(() => {
+    const ids = ['fonctions', 'et-aussi', 'confidentialite'];
+    const els = ids.map((id) => document.getElementById(id)).filter(Boolean);
+    if (!els.length || typeof IntersectionObserver !== 'function') return;
+    const io = new IntersectionObserver(
+      (entries) => entries.forEach((e) => e.isIntersecting && setActive(e.target.id)),
+      { rootMargin: '-35% 0px -55% 0px' },
+    );
+    els.forEach((el) => io.observe(el));
+    return () => io.disconnect();
+  }, []);
   return (
     <div className="lp">
       <header className="lp-nav">
@@ -127,9 +180,20 @@ export default function Landing({ onOpen, onLogin }) {
           </span>
         </a>
         <nav aria-label="Sections">
-          <a href="#fonctions">Fonctions</a>
-          <a href="#confidentialite">Confidentialité</a>
-          <a href="#et-aussi">Et aussi</a>
+          {[
+            ['fonctions', 'Fonctions'],
+            ['et-aussi', 'Et aussi'],
+            ['confidentialite', 'Confidentialité'],
+          ].map(([id, label]) => (
+            <a
+              key={id}
+              href={'#' + id}
+              className={active === id ? 'on' : ''}
+              aria-current={active === id ? 'true' : undefined}
+            >
+              {label}
+            </a>
+          ))}
         </nav>
         <div className="lp-nav-actions">
           <button className="lp-link" onClick={onLogin}>
@@ -231,28 +295,7 @@ export default function Landing({ onOpen, onLogin }) {
                 erreurs de compilation pointent vers leur ligne, avec une explication en français.
               </p>
             </div>
-            <div
-              className="lp-mock lp-link-demo"
-              aria-label="Exemple : une phrase du PDF correspond à une ligne du code"
-            >
-              <div className="lp-pdf">
-                <span>Les pertes fer varient avec</span>
-                <mark>le carré de la fréquence</mark>
-                <span>et l’induction maximale.</span>
-                <MousePointerClick size={20} className="lp-pointer" aria-hidden="true" />
-              </div>
-              <div className="lp-lines">
-                <div>
-                  <em>41</em> Les pertes fer varient avec
-                </div>
-                <div className="hit">
-                  <em>42</em> le carré de la fréquence
-                </div>
-                <div>
-                  <em>43</em> et l’induction maximale.
-                </div>
-              </div>
-            </div>
+            <LinkDemo />
           </div>
 
           <div className="lp-feature">
