@@ -27,6 +27,7 @@ import ShareDialog from './ShareDialog.jsx';
 import { backupBlob, backupFileName, readBackup, LAST_BACKUP_KEY } from './backup.js';
 import useAutoBackup, { markChanged } from './useAutoBackup.js';
 import useCloudSync from './useCloudSync.js';
+import { cloudClient } from './cloud-sync.js';
 import CodeEditor from './CodeEditor.jsx';
 import EditorToolbar from './EditorToolbar.jsx';
 import { LogPanel, ProjectSearch, HistoryPanel, WordCountDialog, SettingsDialog } from './WorkspacePanels.jsx';
@@ -270,6 +271,20 @@ function App() {
       if (DEMO && localStorage.texbea_guest === 'true') {
         setUser({ name: 'Invité', guest: true });
         await loadProjects();
+        return;
+      }
+      // Signed in with Google or GitHub: the cloud session cookie identifies the person.
+      if (DEMO) {
+        try {
+          const me = await cloudClient().me();
+          if (me) {
+            setUser({ name: me.name || me.email, email: me.email, guest: true, cloud: true });
+            if (me.name) setAuthorName(me.name);
+            await loadProjects();
+          }
+        } catch {
+          /* no cloud on this site, or offline */
+        }
       }
     }
     initAuth();
