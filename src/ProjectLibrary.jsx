@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import LogoMark from './LogoMark.jsx';
 import {
   Plus,
   Search,
@@ -26,11 +27,11 @@ export function Brand() {
   return (
     <div className="brand">
       <div className="logo" aria-hidden="true">
-        B<span>·</span>
+        <LogoMark size={30} />
       </div>
       <div>
         <b>
-          TeX<span>Bea</span>
+          TeX<span>bea</span>
         </b>
         <small>L’atelier scientifique</small>
       </div>
@@ -277,7 +278,7 @@ export default function ProjectLibrary({
           </aside>
         </div>
         <footer className="library-footer">
-          <span>TeXBea</span>
+          <span>TeXbea</span>
           <span>Écrire. Comprendre. Transmettre.</span>
         </footer>
       </div>

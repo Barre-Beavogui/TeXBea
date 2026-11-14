@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import LogoMark from './LogoMark.jsx';
 import { Eye, EyeOff, Copy, Check } from 'lucide-react';
 import { AVATAR_COLORS, passwordStrength, userInitials } from './accounts.js';
 import './auth.css';
@@ -128,11 +129,11 @@ export default function AuthScreen({ api, demo = false, onAuth, onGuest, onClose
 
   const Logo = (
     <div className="au-brand">
-      <span className="au-logo" aria-hidden="true">
-        B
+      <span className="au-logo">
+        <LogoMark />
       </span>
       <span>
-        TeX<b>Bea</b>
+        TeX<b>bea</b>
       </span>
     </div>
   );
