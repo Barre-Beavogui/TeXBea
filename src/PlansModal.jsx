@@ -23,9 +23,8 @@ const DEFAULT_PLANS = [
     quota: 2_000_000_000,
     features: [
       '2 Go de sauvegarde cloud synchronisée (10× plus)',
-      'Compilation serveur rapide (XeLaTeX, LuaLaTeX, Biber)',
-      'Suivi des modifications (Révisions) & Historique étendu',
-      'Import bibliographique DOI / arXiv / Crossref illimité',
+      'Compilation sur le serveur : pdfLaTeX, XeLaTeX, LuaLaTeX, Biber (120 s)',
+      'Partage par e-mail avec d’autres comptes TeXBea',
     ],
     available: true,
   },
@@ -36,9 +35,8 @@ const DEFAULT_PLANS = [
     quota: 10_000_000_000,
     features: [
       '10 Go de sauvegarde cloud synchronisée (50× plus)',
-      'Compilation serveur prioritaire longue durée (thèses & livres TikZ)',
-      'Toutes les fonctions Standard + collaboration avancée',
-      'Support prioritaire TeXBea',
+      'Compilation sur le serveur jusqu’à 240 s (thèses, figures TikZ lourdes)',
+      'Toutes les fonctions Standard',
     ],
     available: true,
   },
