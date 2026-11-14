@@ -56,6 +56,9 @@ export async function buildBackup(projects, now = new Date()) {
       main: p.main,
       compiler: p.compiler || 'pdflatex',
       deleted: !!p.deleted,
+      archived: !!p.archived,
+      tags: p.tags || [],
+      fromShare: !!p.fromShare,
       updatedAt: p.updatedAt,
       files: Object.keys(p.files),
       assets,
@@ -144,7 +147,15 @@ export async function readBackup(data) {
       files[n] = await entry.async('string');
     }
     for (const [n, path] of Object.entries(m.assets || {})) assets[n] = await image(path);
-    const project = validateProject({ name: m.name, main: m.main, files, assets });
+    const project = validateProject({
+      name: m.name,
+      main: m.main,
+      files,
+      assets,
+      tags: m.tags,
+      archived: m.archived === true,
+      fromShare: m.fromShare === true,
+    });
     if (isCompiler(m.compiler)) project.compiler = m.compiler;
     const history = [];
     for (const s of Array.isArray(m.history) ? m.history : []) {

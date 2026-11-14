@@ -4571,3 +4571,289 @@ button.link:hover,
     display: block;
   }
 }
+
+/* Library: views, labels, account menu, help, references */
+.lib-side-nav {
+  gap: 14px;
+}
+.lib-sep {
+  height: 1px;
+  margin: 6px 4px;
+  background: var(--border);
+}
+.lib-nav-title {
+  padding: 4px 12px;
+  color: var(--text-3);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.lib-tag-item {
+  position: relative;
+}
+.library .lib-nav .lib-tag-item > button:first-child {
+  width: 100%;
+}
+.library .lib-nav .lib-tag-item > button:first-child span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.library .lib-nav button.lib-tag-x {
+  position: absolute;
+  top: 50%;
+  right: 34px;
+  display: none;
+  width: 24px;
+  min-height: 24px;
+  padding: 0;
+  transform: translateY(-50%);
+  justify-content: center;
+}
+.lib-tag-item:hover .lib-tag-x,
+.lib-tag-x:focus-visible {
+  display: inline-flex;
+}
+.lib-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+.lib-chips i {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 600;
+}
+.lib-bottom {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.library .lib-help-btn {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-2);
+  font-weight: 500;
+}
+.library .lib-help-btn:hover:not(:disabled) {
+  background: var(--hover);
+  color: var(--text);
+}
+.lib-account-menu {
+  position: relative;
+}
+.lib-account-menu summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  list-style: none;
+}
+.lib-account-menu summary::-webkit-details-marker {
+  display: none;
+}
+.lib-account-menu summary:hover {
+  background: var(--hover);
+}
+.lib-account-menu summary .account-meta {
+  min-width: 0;
+  flex: 1;
+}
+.lib-account-menu summary .account-meta b,
+.lib-account-menu summary .account-meta small {
+  max-width: 190px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lib-account-menu summary svg {
+  color: var(--text-3);
+  transition: transform 0.15s;
+}
+.lib-account-menu[open] summary svg {
+  transform: rotate(180deg);
+}
+.lib-account-pop {
+  position: absolute;
+  z-index: 30;
+  right: 0;
+  bottom: calc(100% + 6px);
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+}
+.library .lib-account-pop button {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  border: 0;
+  background: transparent;
+  font-weight: 400;
+  text-align: left;
+}
+.lib-dialog {
+  width: min(480px, calc(100vw - 32px));
+  padding: 20px;
+}
+.lib-dialog .modalHead h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 18px;
+}
+.lib-dialog-sub {
+  margin: 4px 0 12px;
+  color: var(--text-2);
+  font-size: 13px;
+}
+.lib-tag-pick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-height: 180px;
+  margin-bottom: 14px;
+  overflow-y: auto;
+}
+.lib-tag-pick label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  color: var(--text-2);
+  font-size: 13px;
+  cursor: pointer;
+}
+.lib-tag-pick label.on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  font-weight: 600;
+}
+.lib-tag-pick input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.lib-tag-pick label:focus-within {
+  box-shadow: var(--focus);
+}
+.lib-tag-new {
+  display: flex;
+  gap: 8px;
+}
+.lib-tag-new input {
+  flex: 1;
+}
+.lib-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 18px;
+}
+.lib-help dl {
+  margin: 8px 0 14px;
+}
+.lib-help dt {
+  margin-top: 12px;
+  font-weight: 600;
+}
+.lib-help dd {
+  margin: 2px 0 0;
+  color: var(--text-2);
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+.lib-help-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.lib-help-links a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--accent-text);
+  font-size: 13px;
+  font-weight: 600;
+}
+.lib-refs-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 80px 200px;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+}
+.lib-head.lib-refs-row {
+  min-height: 44px;
+  padding: 0 16px;
+}
+.library .lib-ref {
+  width: 100%;
+  min-height: 60px;
+  justify-content: flex-start;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+  text-align: left;
+}
+.lib-ref-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.lib-ref-main b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lib-ref-main small {
+  color: var(--text-3);
+  font-size: 12px;
+  font-weight: 400;
+}
+.lib-ref .lib-owner {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@media (max-width: 900px) {
+  .lib-refs-row {
+    grid-template-columns: minmax(0, 1fr) 60px;
+  }
+  .lib-refs-row > :nth-child(3) {
+    display: none;
+  }
+  .lib-account-pop {
+    bottom: auto;
+    top: calc(100% + 6px);
+  }
+}

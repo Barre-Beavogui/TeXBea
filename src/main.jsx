@@ -591,6 +591,7 @@ function App() {
           files: p.files,
           assets: p.assets,
           compiler: p.compiler,
+          fromShare: true,
         }),
       });
       clearHash();
@@ -695,7 +696,7 @@ function App() {
     }
   }
 
-  async function projectAction(action, id) {
+  async function projectAction(action, id, extra) {
     try {
       if (action === 'export') {
         await exportProject(await api('/projects/' + id));
@@ -708,7 +709,18 @@ function App() {
         if (!name?.trim()) return;
         await api('/projects/' + id, { method: 'PUT', body: JSON.stringify({ name }) });
       } else if (action === 'duplicate') await api('/projects/' + id + '/duplicate', { method: 'POST' });
-      else if (action === 'trash' || action === 'restore')
+      else if (action === 'archive' || action === 'unarchive')
+        await api('/projects/' + id, { method: 'PUT', body: JSON.stringify({ archived: action === 'archive' }) });
+      else if (action === 'tags')
+        await api('/projects/' + id, { method: 'PUT', body: JSON.stringify({ tags: extra }) });
+      else if (action === 'tag-remove') {
+        // Takes a label off every project that carries it.
+        for (const p of projects.filter((p) => p.tags?.includes(extra)))
+          await api('/projects/' + p.id, {
+            method: 'PUT',
+            body: JSON.stringify({ tags: p.tags.filter((t) => t !== extra) }),
+          });
+      } else if (action === 'trash' || action === 'restore')
         await api('/projects/' + id, { method: 'PUT', body: JSON.stringify({ deleted: action === 'trash' }) });
       else if (action === 'remove') {
         if (!confirm('Supprimer définitivement ce projet ? Cette action ne peut pas être annulée.')) return;
@@ -1067,6 +1079,7 @@ function App() {
           onRestore={restoreBackup}
           autoBackup={autoBackup}
           cloudSync={cloudSync}
+          api={api}
           onProfile={openProfileOrAuth}
           onLogout={logout}
           storageKey={storageKey}

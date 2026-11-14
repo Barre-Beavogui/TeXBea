@@ -1,6 +1,7 @@
 import {
   safePath,
   validateProject,
+  cleanTags,
   templateProject,
   renameFile,
   MAX_FILE_SIZE,
@@ -369,6 +370,9 @@ app.get('/api/projects', auth, async (req, res) => {
         updatedAt: p.updatedAt,
         main: p.main,
         deleted: !!p.deleted,
+        archived: !!p.archived,
+        tags: p.tags || [],
+        fromShare: !!p.fromShare,
         fileCount: Object.keys(p.files).length + Object.keys(p.assets || {}).length,
       })),
   );
@@ -428,6 +432,8 @@ app.put('/api/projects/:pid', auth, async (req, res) => {
   const p = d.projects.find((x) => x.id === req.params.pid && x.ownerId === req.userId);
   if (!p) return res.sendStatus(404);
   if ('deleted' in req.body) p.deleted = !!req.body.deleted;
+  if ('archived' in req.body) p.archived = !!req.body.archived;
+  if (Array.isArray(req.body.tags)) p.tags = cleanTags(req.body.tags);
   if (req.body.name) p.name = String(req.body.name).slice(0, 80);
   if (req.body.main && p.files[req.body.main] != null) p.main = req.body.main;
   if (req.body.compiler) {

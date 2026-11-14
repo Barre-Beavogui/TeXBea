@@ -2,6 +2,7 @@ import {
   templateProject,
   safePath,
   validateProject,
+  cleanTags,
   renameFile,
   MAX_FILE_SIZE,
   MAX_PROJECT_SIZE,
@@ -341,6 +342,9 @@ async function run(path, opt) {
         updatedAt: p.updatedAt,
         deleted: !!p.deleted,
         pristine: !!p.pristine,
+        archived: !!p.archived,
+        tags: p.tags || [],
+        fromShare: !!p.fromShare,
         fileCount: Object.keys(p.files).length + Object.keys(p.assets || {}).length,
       }));
   } else if (parts[0] === 'projects') {
@@ -352,6 +356,8 @@ async function run(path, opt) {
       if (method === 'PUT') {
         if (body.name) p.name = String(body.name).trim().slice(0, 80);
         if ('deleted' in body) p.deleted = !!body.deleted;
+        if ('archived' in body) p.archived = !!body.archived;
+        if (Array.isArray(body.tags)) p.tags = cleanTags(body.tags);
         if (body.main) {
           if (!(body.main in p.files) || !body.main.endsWith('.tex')) fail('Fichier principal invalide');
           p.main = body.main;
@@ -366,7 +372,7 @@ async function run(path, opt) {
       }
       result = p;
     } else if (parts[2] === 'duplicate') {
-      result = make({ ...p, name: body.name || p.name + ' — copie' });
+      result = make({ ...p, archived: false, name: body.name || p.name + ' — copie' });
       db.push(result);
     } else if (parts[2] === 'files') {
       const n = decodeURIComponent(parts[3] || body.name || '');

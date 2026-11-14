@@ -113,3 +113,21 @@ test('rappel de sauvegarde', () => {
   assert.equal(backupReminder('2026-11-11T00:00:00Z', p, now), null, 'rien de changé depuis');
   assert.equal(backupReminder('2026-11-08T00:00:00Z', p, now - 8 * 86_400_000), null, 'sauvegarde récente');
 });
+
+test('archive, balises et origine partagée survivent à la sauvegarde', async () => {
+  const p = {
+    id: 'a1',
+    name: 'Rangé',
+    main: 'main.tex',
+    files: { 'main.tex': '\\documentclass{article}' },
+    assets: {},
+    archived: true,
+    tags: ['Cours'],
+    fromShare: true,
+    updatedAt: new Date().toISOString(),
+  };
+  const back = await readBackup(await bytes([p]));
+  assert.equal(back.projects[0].archived, true);
+  assert.deepEqual(back.projects[0].tags, ['Cours']);
+  assert.equal(back.projects[0].fromShare, true);
+});
