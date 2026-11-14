@@ -4276,3 +4276,95 @@ button.link:hover,
     display: none;
   }
 }
+
+/* Backup card: one row per place where the projects are kept */
+.storage-summary {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin: 12px 0 4px;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+}
+.storage-summary svg {
+  flex: none;
+  margin-top: 1px;
+}
+.storage-summary.ok svg {
+  color: var(--success);
+}
+.storage-summary.risk svg {
+  color: var(--warning);
+}
+.storage-row {
+  display: flex;
+  gap: 10px;
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+}
+.storage-row:first-of-type {
+  margin-top: 8px;
+}
+.storage-ico {
+  flex: none;
+  margin-top: 1px;
+  color: var(--text-3);
+}
+.storage-row.ok .storage-ico {
+  color: var(--success);
+}
+.storage-row.risk .storage-ico {
+  color: var(--warning);
+}
+.storage-body {
+  min-width: 0;
+  flex: 1;
+}
+.storage-body > b {
+  color: var(--text);
+  font-size: 13px;
+}
+.storage-text {
+  margin: 2px 0 0;
+  color: var(--text-2);
+  font-size: 12.5px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.storage-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.library .storage-card button.storage-mini {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 30px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+.storage-body-extra {
+  display: block;
+}
+.storage-browser {
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  font-size: 12.5px;
+}
+.storage-browser summary {
+  color: var(--text-2);
+  font-weight: 600;
+  cursor: pointer;
+}
+.account-static {
+  cursor: default;
+}
+.account-chip img {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  object-fit: cover;
+}

@@ -67,6 +67,14 @@ export default function ProjectLibrary({
         ),
     [projects, query, sort, trash],
   );
+  // Signed in through Google, GitHub or an e-mail code: the cloud session is the identity, even on a guest workspace.
+  const cloudUser = cloudSync?.user;
+  const cloudWho = cloudUser && {
+    name: cloudUser.name || cloudUser.email,
+    email: cloudUser.email,
+    avatar: cloudUser.avatar,
+  };
+  const signedName = cloudWho?.name || (user && !user.guest ? user.name : '');
   const recent = projects
     .filter((p) => !p.deleted)
     .sort((a, b) => Date.parse(b.updatedAt || 0) - Date.parse(a.updatedAt || 0))[0];
@@ -92,21 +100,37 @@ export default function ProjectLibrary({
           </button>
         )}
         <div className="library-account-bar">
-          <button
-            type="button"
-            className="account-profile-btn"
-            onClick={onProfile}
-            title={user?.guest ? 'Créer un compte ou se connecter' : 'Mon profil et mes paramètres de compte'}
-          >
-            <span className="account-chip" style={{ background: user?.avatarColor || '#1f3a60' }}>
-              {user?.guest ? <User size={15} /> : userInitials(user)}
-            </span>
-            <span className="account-meta">
-              <b>{user?.guest ? 'Se connecter / S’inscrire' : user?.name || 'Mon compte'}</b>
-              {user?.institution && <small>{user.institution}</small>}
-            </span>
-          </button>
-          {!user?.guest && onLogout && (
+          {cloudWho ? (
+            <div className="account-profile-btn account-static" title={'Connecté avec ' + cloudWho.email}>
+              <span className="account-chip" style={{ background: '#1f3a60' }}>
+                {cloudWho.avatar ? (
+                  <img src={cloudWho.avatar} alt="" referrerPolicy="no-referrer" />
+                ) : (
+                  userInitials(cloudWho)
+                )}
+              </span>
+              <span className="account-meta">
+                <b>{cloudWho.name}</b>
+                <small>{cloudWho.email}</small>
+              </span>
+            </div>
+          ) : (
+            <button
+              type="button"
+              className="account-profile-btn"
+              onClick={onProfile}
+              title={user?.guest ? 'Créer un compte ou se connecter' : 'Mon profil et mes paramètres de compte'}
+            >
+              <span className="account-chip" style={{ background: user?.avatarColor || '#1f3a60' }}>
+                {user?.guest ? <User size={15} /> : userInitials(user)}
+              </span>
+              <span className="account-meta">
+                <b>{user?.guest ? 'Se connecter / S’inscrire' : user?.name || 'Mon compte'}</b>
+                {user?.institution && <small>{user.institution}</small>}
+              </span>
+            </button>
+          )}
+          {(cloudWho || !user?.guest) && onLogout && (
             <button
               type="button"
               className="icon account-logout-btn"
@@ -123,7 +147,7 @@ export default function ProjectLibrary({
         <div className="library-title">
           <div>
             <div className="eyebrow">
-              {user && !user.guest ? `ESPACE DE ${user.name.toUpperCase()}` : 'TON ESPACE DE TRAVAIL'}
+              {signedName ? `ESPACE DE ${signedName.toUpperCase()}` : 'TON ESPACE DE TRAVAIL'}
             </div>
             <h1>
               Des idées aux <em>pages.</em>

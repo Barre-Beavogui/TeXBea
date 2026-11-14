@@ -3,7 +3,22 @@ import { HardDrive, ShieldCheck, ShieldAlert, Archive, ArchiveRestore, FolderSyn
 import { formatSize } from './project-tools.js';
 import { LAST_BACKUP_KEY, backupReminder } from './backup.js';
 
-// Browser space used, whether the browser promised to keep the projects, and the last full backup.
+// One line of the backup card: what it is, where it stands, what can be done about it.
+function Row({ icon, tone = '', title, children, actions }) {
+  return (
+    <div className={'storage-row ' + tone}>
+      <span className="storage-ico">{icon}</span>
+      <div className="storage-body">
+        <b>{title}</b>
+        <div className="storage-text">{children}</div>
+        {actions && <div className="storage-row-actions">{actions}</div>}
+      </div>
+    </div>
+  );
+}
+const Mini = (props) => <button type="button" className="storage-mini" {...props} />;
+
+// Where the projects are kept: online copy, folder on the computer, ZIP file, and the browser's own storage.
 export default function StorageStatus({ projects, browser, onBackup, onRestore, auto, cloud, refreshKey }) {
   const picker = useRef(null);
   const [estimate, setEstimate] = useState(null);
@@ -17,9 +32,13 @@ export default function StorageStatus({ projects, browser, onBackup, onRestore, 
       .estimate?.()
       .then(setEstimate)
       .catch(() => {});
+    // Ask quietly: browsers grant it by themselves once the site is used often, installed or bookmarked.
     storage
       .persisted?.()
-      .then(setPersisted)
+      .then(async (yes) => {
+        if (!yes) yes = await storage.persist?.().catch(() => false);
+        setPersisted(!!yes);
+      })
       .catch(() => {});
   }, [browser, refreshKey]);
   async function protect() {
@@ -36,139 +55,164 @@ export default function StorageStatus({ projects, browser, onBackup, onRestore, 
   }
   const reminder = backupReminder(last, projects);
   const date = (v) => new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(v));
+  const cloudOk = !!cloud?.user && cloud.status !== 'error';
+  const folderOk = auto?.status === 'on';
+  const zipOk = !!last && !reminder;
+  const safe = cloudOk || folderOk || zipOk || persisted;
+  const level = cloudOk || folderOk || zipOk ? 'ok' : persisted ? '' : 'risk';
+  const summary = cloudOk
+    ? 'Tes projets sont copiés en ligne.'
+    : folderOk
+      ? 'Tes projets sont copiés dans ton dossier.'
+      : zipOk
+        ? 'Ta sauvegarde ZIP est à jour.'
+        : projects.some((p) => !p.deleted)
+          ? 'Tes projets ne sont que dans ce navigateur : active une copie ci-dessous.'
+          : 'Rien à sauvegarder pour l’instant.';
   return (
-    <section className={'storage-card' + (reminder ? ' warn' : '')} aria-label="Sauvegarde et stockage">
+    <section
+      className={'storage-card' + (level === 'risk' && reminder ? ' warn' : '')}
+      aria-label="Sauvegarde et stockage"
+    >
       <div className="resume-label">
         <HardDrive size={16} /> SAUVEGARDE
       </div>
-      {browser && persisted !== null && (
-        <p className={'storage-line ' + (persisted ? 'ok' : 'risk')}>
-          {persisted ? <ShieldCheck size={16} /> : <ShieldAlert size={16} />}
-          {persisted ? (
-            <span>Projets protégés : le navigateur ne les effacera pas pour faire de la place.</span>
-          ) : (
-            <span>
-              Non protégés : le navigateur peut les effacer s’il manque de place.{' '}
-              <button className="link" onClick={protect}>
-                Protéger
-              </button>
-            </span>
-          )}
-        </p>
-      )}
-      {browser && estimate?.usage != null && (
-        <div className="storage-meter" title="Espace utilisé par TeXBea dans ce navigateur">
-          <div>
-            <span style={{ width: Math.min(100, (estimate.usage / (estimate.quota || 1)) * 100) + '%' }} />
-          </div>
-          <small>
-            {formatSize(estimate.usage)} utilisés
-            {estimate.quota ? ` sur ${formatSize(estimate.quota)} disponibles` : ''}
-          </small>
-        </div>
-      )}
-      <p className="storage-last">
-        {last && `Dernière sauvegarde complète : ${date(last)}. `}
-        {reminder ? (
-          <b>{last ? 'Des projets ont changé depuis.' : reminder}</b>
-        ) : (
-          !last && 'Rien à sauvegarder pour l’instant.'
-        )}
+      <p className={'storage-summary ' + level}>
+        {safe && level !== 'risk' ? <ShieldCheck size={17} /> : <ShieldAlert size={17} />}
+        <span>{summary}</span>
       </p>
-      {auto && <AutoBackupLine auto={auto} date={date} />}
-      {cloud && <CloudLine cloud={cloud} date={date} />}
-      <div className="storage-actions">
-        <button onClick={onBackup}>
-          <Archive size={15} /> Tout sauvegarder
-        </button>
-        <button onClick={() => picker.current?.click()}>
-          <ArchiveRestore size={15} /> Restaurer
-        </button>
-        <input
-          ref={picker}
-          type="file"
-          accept=".zip"
-          hidden
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            e.target.value = '';
-            if (f) onRestore(f);
-          }}
-        />
-      </div>
+      {cloud && <CloudRow cloud={cloud} date={date} />}
+      {auto && <AutoBackupRow auto={auto} date={date} />}
+      <Row
+        icon={<Archive size={16} />}
+        tone={zipOk ? 'ok' : reminder ? 'risk' : ''}
+        title="Fichier ZIP"
+        actions={
+          <>
+            <Mini onClick={onBackup}>
+              <Archive size={14} /> Tout sauvegarder
+            </Mini>
+            <Mini onClick={() => picker.current?.click()}>
+              <ArchiveRestore size={14} /> Restaurer
+            </Mini>
+            <input
+              ref={picker}
+              type="file"
+              accept=".zip"
+              hidden
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                e.target.value = '';
+                if (f) onRestore(f);
+              }}
+            />
+          </>
+        }
+      >
+        {last ? `Dernière sauvegarde le ${date(last)}. ` : ''}
+        {reminder
+          ? last
+            ? 'Des projets ont changé depuis.'
+            : reminder
+          : !last
+            ? 'Rien à sauvegarder pour l’instant.'
+            : ''}
+      </Row>
+      {browser && (persisted !== null || estimate?.usage != null) && (
+        <details className="storage-browser">
+          <summary>Espace du navigateur</summary>
+          {persisted !== null && (
+            <p className={'storage-line ' + (persisted ? 'ok' : '')}>
+              {persisted ? <ShieldCheck size={16} /> : <ShieldAlert size={16} />}
+              {persisted ? (
+                <span>Protégé : le navigateur n’effacera pas les projets pour faire de la place.</span>
+              ) : (
+                <span>
+                  Non protégé : le navigateur peut effacer les projets s’il manque de place.{' '}
+                  <button className="link" onClick={protect}>
+                    Protéger
+                  </button>
+                </span>
+              )}
+            </p>
+          )}
+          {estimate?.usage != null && (
+            <div
+              className="storage-meter"
+              title="Espace utilisé par TeXBea dans ce navigateur (projets, moteur LaTeX, cache)"
+            >
+              <div>
+                <span style={{ width: Math.min(100, (estimate.usage / (estimate.quota || 1)) * 100) + '%' }} />
+              </div>
+              <small>
+                {formatSize(estimate.usage)} utilisés (projets, moteur LaTeX et cache)
+                {estimate.quota ? ` sur ${formatSize(estimate.quota)} disponibles` : ''}
+              </small>
+            </div>
+          )}
+        </details>
+      )}
     </section>
   );
 }
 
 // Automatic backup into a folder of the user's choice, written without anyone having to remember.
-function AutoBackupLine({ auto, date }) {
+function AutoBackupRow({ auto, date }) {
   const { status, name, last, error } = auto;
+  const title = 'Dossier sur ton ordinateur';
   if (status === 'unsupported')
     return (
-      <p className="storage-line">
-        <FolderSync size={16} />
-        <span>
-          Sauvegarde automatique dans un dossier : disponible dans Chrome, Edge et Brave. Dans ce navigateur, « Tout
-          sauvegarder » reste à lancer à la main.
-        </span>
-      </p>
+      <Row icon={<FolderSync size={16} />} title={title}>
+        Copie automatique dans un dossier : disponible dans Chrome, Edge et Brave.
+      </Row>
     );
   if (status === 'off')
     return (
-      <p className="storage-line risk">
-        <FolderSync size={16} />
-        <span>
-          Sauvegarde automatique désactivée.{' '}
-          <button className="link" onClick={auto.choose}>
-            Choisir un dossier
-          </button>
-        </span>
-      </p>
+      <Row
+        icon={<FolderSync size={16} />}
+        title={title}
+        actions={<Mini onClick={auto.choose}>Choisir un dossier</Mini>}
+      >
+        Facultatif : une copie est écrite toute seule dans le dossier de ton choix, avec sept jours d’historique.
+      </Row>
     );
   if (status === 'permission')
     return (
-      <p className="storage-line risk">
-        <ShieldAlert size={16} />
-        <span>
-          Sauvegarde automatique en pause : le navigateur attend un clic pour rouvrir le dossier « {name} ». Clique
-          n’importe où dans la page.
-        </span>
-      </p>
+      <Row icon={<ShieldAlert size={16} />} tone="risk" title={title}>
+        En pause : le navigateur attend un clic pour rouvrir le dossier « {name} ». Clique n’importe où dans la page.
+      </Row>
     );
   if (status === 'error')
     return (
-      <p className="storage-line risk">
-        <ShieldAlert size={16} />
-        <span>
-          Sauvegarde automatique impossible : {error}{' '}
-          <button className="link" onClick={auto.choose}>
-            Choisir un autre dossier
-          </button>
-        </span>
-      </p>
+      <Row
+        icon={<ShieldAlert size={16} />}
+        tone="risk"
+        title={title}
+        actions={<Mini onClick={auto.choose}>Choisir un autre dossier</Mini>}
+      >
+        Copie impossible : {error}
+      </Row>
     );
   return (
-    <p className="storage-line ok">
-      <FolderSync size={16} />
-      <span>
-        Sauvegarde automatique active vers « {name} »{last ? `, dernière copie le ${date(last)}` : ''}. Sept jours de
-        copies sont gardés.{' '}
-        <button className="link" onClick={auto.backupNow}>
-          Sauvegarder maintenant
-        </button>{' '}
-        <button className="link" onClick={auto.choose}>
-          Changer
-        </button>{' '}
-        <button className="link" onClick={auto.disable}>
-          Désactiver
-        </button>
-      </span>
-    </p>
+    <Row
+      icon={<FolderSync size={16} />}
+      tone="ok"
+      title={title}
+      actions={
+        <>
+          <Mini onClick={auto.backupNow}>Sauvegarder maintenant</Mini>
+          <Mini onClick={auto.choose}>Changer</Mini>
+          <Mini onClick={auto.disable}>Désactiver</Mini>
+        </>
+      }
+    >
+      Copie automatique vers « {name} »{last ? `, dernière le ${date(last)}` : ''}. Sept jours de copies sont gardés.
+    </Row>
   );
 }
 
 // Online copy: signed out → three ways to sign in, none with a password; signed in → state of the synchronisation.
-function CloudLine({ cloud, date }) {
+function CloudRow({ cloud, date }) {
   const [step, setStep] = useState('');
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
@@ -188,12 +232,11 @@ function CloudLine({ cloud, date }) {
   };
   if (!user)
     return (
-      <div className="storage-line">
-        <Cloud size={16} />
-        <span>
-          <b>Copie en ligne</b> : connecte-toi, sans mot de passe, pour retrouver tes projets sur tous tes appareils.
-          Ils restent aussi dans ce navigateur.
-          {(notice || error) && <em> {notice || error}</em>}
+      <Row icon={<Cloud size={16} />} title="Copie en ligne">
+        Connecte-toi, sans mot de passe, pour retrouver tes projets sur tous tes appareils. Ils restent aussi dans ce
+        navigateur.
+        {(notice || error) && <em> {notice || error}</em>}
+        <span className="storage-body-extra">
           <span className="cloud-login">
             {providers?.google && <button onClick={() => cloud.login('google')}>Continuer avec Google</button>}
             {providers?.github && <button onClick={() => cloud.login('github')}>Continuer avec GitHub</button>}
@@ -249,38 +292,42 @@ function CloudLine({ cloud, date }) {
           )}
           {message && <em> {message}</em>}
         </span>
-      </div>
+      </Row>
     );
   return (
-    <p className={'storage-line ' + (status === 'error' ? 'risk' : 'ok')}>
-      <Cloud size={16} />
-      <span>
-        Copie en ligne active pour {user.email}.{' '}
-        {status === 'syncing'
-          ? 'Synchronisation…'
-          : status === 'error'
-            ? error
-            : last
-              ? `Synchronisé le ${date(last)}.`
-              : ''}
-        {usage ? ` ${(usage.bytes / 1e6).toFixed(1)} Mo sur ${(usage.quota / 1e6).toFixed(0)} Mo.` : ''} Tes projets
-        sont stockés chez TeXBea (chiffrés pendant le transfert, pas de bout en bout).{' '}
-        <button className="link" onClick={cloud.syncNow}>
-          Synchroniser
-        </button>{' '}
-        <button className="link" onClick={cloud.logout}>
-          Se déconnecter
-        </button>{' '}
-        <button
-          className="link"
-          onClick={() => {
-            if (confirm('Supprimer ton compte et toutes les copies en ligne ? Tes projets restent dans ce navigateur.'))
-              cloud.deleteAccount().catch((e) => alert(e.message));
-          }}
-        >
-          Supprimer mon compte
-        </button>
-      </span>
-    </p>
+    <Row
+      icon={<Cloud size={16} />}
+      tone={status === 'error' ? 'risk' : 'ok'}
+      title="Copie en ligne"
+      actions={
+        <>
+          <Mini onClick={cloud.syncNow} disabled={status === 'syncing'}>
+            Synchroniser
+          </Mini>
+          <Mini onClick={cloud.logout}>Se déconnecter</Mini>
+          <Mini
+            onClick={() => {
+              if (
+                confirm('Supprimer ton compte et toutes les copies en ligne ? Tes projets restent dans ce navigateur.')
+              )
+                cloud.deleteAccount().catch((e) => alert(e.message));
+            }}
+          >
+            Supprimer mon compte
+          </Mini>
+        </>
+      }
+    >
+      Active pour {user.email}.{' '}
+      {status === 'syncing'
+        ? 'Synchronisation…'
+        : status === 'error'
+          ? error
+          : last
+            ? `Synchronisé le ${date(last)}.`
+            : ''}
+      {usage ? ` ${formatSize(usage.bytes)} sur ${formatSize(usage.quota)}.` : ''} Les projets sont stockés chez TeXBea
+      (chiffrés pendant le transfert, pas de bout en bout).
+    </Row>
   );
 }
