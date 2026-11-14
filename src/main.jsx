@@ -21,6 +21,7 @@ import { appendBibEntry } from './bib-import.js';
 import SharedView from './SharedView.jsx';
 import ShareDialog from './ShareDialog.jsx';
 import { backupBlob, backupFileName, readBackup, LAST_BACKUP_KEY } from './backup.js';
+import useAutoBackup, { markChanged } from './useAutoBackup.js';
 import CodeEditor from './CodeEditor.jsx';
 import EditorToolbar from './EditorToolbar.jsx';
 import { LogPanel, ProjectSearch, HistoryPanel, WordCountDialog, SettingsDialog } from './WorkspacePanels.jsx';
@@ -63,6 +64,8 @@ const InlineAssistant = lazy(() => import('./InlineAssistant.jsx'));
 const PdfViewer = lazy(() => import('./PdfViewer.jsx'));
 const API = '/api';
 async function api(path, opt = {}) {
+  // Any write (not a sign-in) makes the next automatic backup due.
+  if (opt.method && opt.method !== 'GET' && !path.startsWith('/auth')) markChanged();
   if (DEMO) return demoApi(path, opt);
   const token = localStorage.tn_token;
   const r = await fetch(API + path, {
@@ -199,6 +202,7 @@ function App() {
     uploadRef = useRef(),
     photoRef = useRef(),
     assistantSelection = useRef();
+  const autoBackup = useAutoBackup({ api, enabled: !!user, onChange: () => setStorageKey((k) => k + 1) });
   useEffect(
     () => () => {
       if (pdf.startsWith('blob:')) URL.revokeObjectURL(pdf);
@@ -1020,6 +1024,7 @@ function App() {
           onAction={projectAction}
           onBackup={backupAll}
           onRestore={restoreBackup}
+          autoBackup={autoBackup}
           storageKey={storageKey}
           mode={DEMO}
         />

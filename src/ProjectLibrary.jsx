@@ -34,7 +34,17 @@ export function Brand() {
     </div>
   );
 }
-export default function ProjectLibrary({ projects, onOpen, onNew, onAction, onBackup, onRestore, storageKey, mode }) {
+export default function ProjectLibrary({
+  projects,
+  onOpen,
+  onNew,
+  onAction,
+  onBackup,
+  onRestore,
+  autoBackup,
+  storageKey,
+  mode,
+}) {
   const [trash, setTrash] = useState(false);
   const app = useAppStatus();
   const [query, setQuery] = useState(''),
@@ -211,6 +221,7 @@ export default function ProjectLibrary({ projects, onOpen, onNew, onAction, onBa
               browser={mode}
               onBackup={onBackup}
               onRestore={onRestore}
+              auto={autoBackup}
               refreshKey={storageKey}
             />
             <section className="workspace-note">

@@ -1,10 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { HardDrive, ShieldCheck, ShieldAlert, Archive, ArchiveRestore } from 'lucide-react';
+import { HardDrive, ShieldCheck, ShieldAlert, Archive, ArchiveRestore, FolderSync } from 'lucide-react';
 import { formatSize } from './project-tools.js';
 import { LAST_BACKUP_KEY, backupReminder } from './backup.js';
 
 // Browser space used, whether the browser promised to keep the projects, and the last full backup.
-export default function StorageStatus({ projects, browser, onBackup, onRestore, refreshKey }) {
+export default function StorageStatus({ projects, browser, onBackup, onRestore, auto, refreshKey }) {
   const picker = useRef(null);
   const [estimate, setEstimate] = useState(null);
   const [persisted, setPersisted] = useState(null);
@@ -75,6 +75,7 @@ export default function StorageStatus({ projects, browser, onBackup, onRestore, 
           !last && 'Rien à sauvegarder pour l’instant.'
         )}
       </p>
+      {auto && <AutoBackupLine auto={auto} date={date} />}
       <div className="storage-actions">
         <button onClick={onBackup}>
           <Archive size={15} /> Tout sauvegarder
@@ -95,5 +96,72 @@ export default function StorageStatus({ projects, browser, onBackup, onRestore, 
         />
       </div>
     </section>
+  );
+}
+
+// Automatic backup into a folder of the user's choice, written without anyone having to remember.
+function AutoBackupLine({ auto, date }) {
+  const { status, name, last, error } = auto;
+  if (status === 'unsupported')
+    return (
+      <p className="storage-line">
+        <FolderSync size={16} />
+        <span>
+          Sauvegarde automatique dans un dossier : disponible dans Chrome, Edge et Brave. Dans ce navigateur, « Tout
+          sauvegarder » reste à lancer à la main.
+        </span>
+      </p>
+    );
+  if (status === 'off')
+    return (
+      <p className="storage-line risk">
+        <FolderSync size={16} />
+        <span>
+          Sauvegarde automatique désactivée.{' '}
+          <button className="link" onClick={auto.choose}>
+            Choisir un dossier
+          </button>
+        </span>
+      </p>
+    );
+  if (status === 'permission')
+    return (
+      <p className="storage-line risk">
+        <ShieldAlert size={16} />
+        <span>
+          Sauvegarde automatique en pause : le navigateur attend un clic pour rouvrir le dossier « {name} ». Clique
+          n’importe où dans la page.
+        </span>
+      </p>
+    );
+  if (status === 'error')
+    return (
+      <p className="storage-line risk">
+        <ShieldAlert size={16} />
+        <span>
+          Sauvegarde automatique impossible : {error}{' '}
+          <button className="link" onClick={auto.choose}>
+            Choisir un autre dossier
+          </button>
+        </span>
+      </p>
+    );
+  return (
+    <p className="storage-line ok">
+      <FolderSync size={16} />
+      <span>
+        Sauvegarde automatique active vers « {name} »{last ? `, dernière copie le ${date(last)}` : ''}. Sept jours de
+        copies sont gardés.{' '}
+        <button className="link" onClick={auto.backupNow}>
+          Sauvegarder maintenant
+        </button>{' '}
+        <button className="link" onClick={auto.choose}>
+          Changer
+        </button>{' '}
+        <button className="link" onClick={auto.disable}>
+          Désactiver
+        </button>
+      </span>
+    </p>
   );
 }
