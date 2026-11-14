@@ -11,8 +11,13 @@ import { prepareImage } from './image-input.js';
 import { loadSettings, saveSettings } from './settings.js';
 import { demoApi } from './demo-api.js';
 import { registerOffline } from './pwa.js';
-import { readHash, commentLine } from './share.js';
+import { readHash, commentLine, authorName } from './share.js';
 import CommentsPanel from './CommentsPanel.jsx';
+import TrackChangesPanel from './TrackChangesPanel.jsx';
+import VisualModal from './VisualModal.jsx';
+import BibImportDialog from './BibImportDialog.jsx';
+import { findTrackedChanges, wrapTrackedChange, ensureChangesPreamble } from './track-changes.js';
+import { appendBibEntry } from './bib-import.js';
 import SharedView from './SharedView.jsx';
 import ShareDialog from './ShareDialog.jsx';
 import { backupBlob, backupFileName, readBackup, LAST_BACKUP_KEY } from './backup.js';
@@ -50,6 +55,7 @@ import {
   Presentation,
   MessageSquare,
   Share2,
+  GitCompare,
 } from 'lucide-react';
 import './style.css';
 const AssistantPanel = lazy(() => import('./AssistantPanel.jsx'));
@@ -179,7 +185,13 @@ function App() {
     [assetPreview, setAssetPreview] = useState(null),
     [shared, setShared] = useState(null),
     [commentsOpen, setCommentsOpen] = useState(false),
+    [revisionsOpen, setRevisionsOpen] = useState(false),
+    [visualOpen, setVisualOpen] = useState(null),
+    [bibImportOpen, setBibImportOpen] = useState(false),
+    [peers, setPeers] = useState([]),
     [shareOpen, setShareOpen] = useState(false),
+    wsRef = useRef(null),
+    bcRef = useRef(null),
     timer = useRef(),
     autoTimer = useRef(),
     compiling = useRef(false),
@@ -197,6 +209,7 @@ function App() {
   const currentFiles = useMemo(() => ({ ...files, [active]: code }), [files, active, code]);
   const parsedLog = useMemo(() => parseLatexLog(log, files, project?.main), [log, files, project?.main]);
   const comments = project?.comments || [];
+  const trackedChanges = useMemo(() => findTrackedChanges(currentFiles), [currentFiles]);
   const activeDiagnostics = useMemo(
     () => [
       ...parsedLog.all.filter((e) => e.file === active),
@@ -204,8 +217,15 @@ function App() {
       ...comments
         .filter((c) => c.file === active && !c.resolved)
         .map((c) => ({ line: commentLine(code, c), level: 'info', message: `💬 ${c.author} : ${c.text}` })),
+      ...trackedChanges
+        .filter((c) => c.file === active)
+        .map((c) => ({
+          line: c.line,
+          level: 'info',
+          message: `✏️ Révision (${c.kind === 'added' ? 'ajout' : c.kind === 'deleted' ? 'suppression' : 'remplacement'})`,
+        })),
     ],
-    [parsedLog, active, comments, code],
+    [parsedLog, active, comments, trackedChanges, code],
   );
   const outline = useMemo(() => documentOutline(code), [code]);
   const mainSource = active === project?.main ? code : project?.files?.[project?.main];
@@ -256,30 +276,75 @@ function App() {
     if (DEMO) {
       setUser({ name: 'Essai local' });
       loadProjects();
-      openLinkInHash();
-      window.addEventListener('hashchange', openLinkInHash);
-      return () => window.removeEventListener('hashchange', openLinkInHash);
-    }
-    if (localStorage.tn_token) {
+    } else if (localStorage.tn_token) {
       setUser({ name: 'Workspace' });
       loadProjects();
     }
+    openLinkInHash();
+    window.addEventListener('hashchange', openLinkInHash);
+    return () => window.removeEventListener('hashchange', openLinkInHash);
   }, []);
   useEffect(() => {
-    if (DEMO || !project || !localStorage.tn_token) return;
+    if (!project) return;
+    if (DEMO) {
+      if (typeof BroadcastChannel === 'undefined') return;
+      const bc = new BroadcastChannel('texbea-sync');
+      bcRef.current = bc;
+      bc.onmessage = (e) => {
+        const m = e.data;
+        if (!m || m.projectId !== project.id) return;
+        if (m.type === 'file') {
+          setProject((p) => (p ? { ...p, files: { ...p.files, [m.name]: m.content } } : p));
+          if (m.name === active && !dirty) {
+            setCode(m.content);
+            notify('Modification synchronisée depuis un autre onglet');
+          }
+        } else if (m.type === 'comments') {
+          setProject((p) => (p ? { ...p, comments: m.comments } : p));
+        }
+      };
+      return () => {
+        bc.close();
+        bcRef.current = null;
+      };
+    }
+    if (!localStorage.tn_token) return;
     const proto = location.protocol === 'https:' ? 'wss' : 'ws';
     const ws = new WebSocket(`${proto}://${location.host}/ws?token=${localStorage.tn_token}&project=${project.id}`);
+    wsRef.current = ws;
     ws.onmessage = (e) => {
       try {
         const m = JSON.parse(e.data);
-        if (m.type === 'file' && m.name === active && !dirty) {
-          setCode(m.content);
-          notify('Modification distante reçue');
+        if (m.type === 'file') {
+          setProject((p) => (p ? { ...p, files: { ...p.files, [m.name]: m.content } } : p));
+          if (m.name === active && !dirty) {
+            setCode(m.content);
+            notify('Modification distante reçue');
+          }
+        } else if (m.type === 'comments') {
+          setProject((p) => (p ? { ...p, comments: m.comments } : p));
+        } else if (m.type === 'presence') {
+          setPeers(m.peers || []);
         }
       } catch {}
     };
-    return () => ws.close();
+    return () => {
+      ws.close();
+      wsRef.current = null;
+      setPeers([]);
+    };
   }, [project?.id, active, dirty]);
+  useEffect(() => {
+    if (!wsRef.current || wsRef.current.readyState !== 1) return;
+    wsRef.current.send(
+      JSON.stringify({
+        type: 'cursor',
+        name: authorName() || user?.name || 'Collaborateur',
+        file: active,
+        line: cursor.line,
+      }),
+    );
+  }, [active, cursor.line, user?.name]);
   useEffect(() => {
     if (!dirty || !project) return;
     clearTimeout(timer.current);
@@ -334,6 +399,7 @@ function App() {
         body: JSON.stringify({ content: code }),
       });
       setProject((p) => ({ ...p, files: { ...p.files, [active]: code } }));
+      bcRef.current?.postMessage({ type: 'file', projectId: project.id, name: active, content: code });
       setDirty(false);
       if (!silent) notify('Sauvegardé');
       return true;
@@ -538,6 +604,7 @@ function App() {
         body: JSON.stringify({ file: active, line: cursor.line, quote, text, author }),
       });
       setProject((p) => ({ ...p, comments: r.comments }));
+      bcRef.current?.postMessage({ type: 'comments', projectId: project.id, comments: r.comments });
     } catch (e) {
       notify(e.message);
     }
@@ -546,9 +613,66 @@ function App() {
     try {
       const r = await api(`/projects/${project.id}/comments/${id}`, change);
       setProject((p) => ({ ...p, comments: r.comments }));
+      bcRef.current?.postMessage({ type: 'comments', projectId: project.id, comments: r.comments });
     } catch (e) {
       notify(e.message);
     }
+  }
+  async function updateAnyFile(fileName, nextContent) {
+    try {
+      await api(`/projects/${project.id}/files/${encodeURIComponent(fileName)}`, {
+        method: 'PUT',
+        body: JSON.stringify({ content: nextContent }),
+      });
+      setProject((p) => ({ ...p, files: { ...p.files, [fileName]: nextContent } }));
+      bcRef.current?.postMessage({ type: 'file', projectId: project.id, name: fileName, content: nextContent });
+      if (fileName === active) {
+        setCode(nextContent);
+        setDirty(false);
+      }
+      notify('Révision appliquée');
+    } catch (e) {
+      notify(e.message);
+    }
+  }
+  async function markSelectionAsChange(kind, replacement = '', author = '') {
+    const ed = editorRef.current;
+    if (!ed) return;
+    const sel = ed.selection();
+    const selectedText = code.slice(sel.start, sel.end);
+    const wrapped = wrapTrackedChange(selectedText, kind, replacement, author);
+    let nextCode = code.slice(0, sel.start) + wrapped + code.slice(sel.end);
+    if (active === project.main) {
+      nextCode = ensureChangesPreamble(nextCode);
+    } else if (project.files[project.main]) {
+      const nextMain = ensureChangesPreamble(project.files[project.main]);
+      if (nextMain !== project.files[project.main]) {
+        await updateAnyFile(project.main, nextMain);
+      }
+    }
+    setCode(nextCode);
+    setDirty(true);
+    notify('Modification marquée');
+  }
+  async function addBibEntryToFile(bibFile, entryText) {
+    const exists = bibFile in currentFiles;
+    const currentBib = currentFiles[bibFile] || '% Bibliographie TeXBea\n';
+    const { content, key, duplicate } = appendBibEntry(currentBib, entryText);
+    if (duplicate) {
+      notify(`La clé « ${key} » est déjà dans ${bibFile}`);
+      return { key, duplicate: true };
+    }
+    if (!exists) {
+      const p = await api(`/projects/${project.id}/files`, {
+        method: 'POST',
+        body: JSON.stringify({ name: bibFile, content }),
+      });
+      setProject(p);
+    } else {
+      await updateAnyFile(bibFile, content);
+    }
+    notify(`Référence « ${key} » ajoutée à ${bibFile}`);
+    return { key, duplicate: false };
   }
   async function openShare() {
     if (dirty && !(await saveFile(true))) return;
@@ -587,11 +711,11 @@ function App() {
       notify(e.message);
     }
   }
-  // Every project in one ZIP; in the browser version the versions and their images come along.
+  // Every project in one ZIP; versions, images and comments come along in both browser and server modes.
   async function backupAll() {
     try {
       notify('Préparation de la sauvegarde…');
-      const all = DEMO ? await api('/backup') : await Promise.all(projects.map((p) => api('/projects/' + p.id)));
+      const all = await api('/backup');
       const now = new Date();
       downloadBlob(await backupBlob(all), backupFileName(now));
       localStorage.setItem(LAST_BACKUP_KEY, now.toISOString());
@@ -613,24 +737,9 @@ function App() {
         )
       )
         return;
-      let added = 0,
-        skipped = 0;
-      if (DEMO)
-        ({ added, skipped } = await demoApi('/restore', { method: 'POST', data: { projects: backup.projects } }));
-      else
-        for (const p of backup.projects) {
-          await api('/projects', {
-            method: 'POST',
-            body: JSON.stringify({
-              name: p.name,
-              main: p.main,
-              files: p.files,
-              assets: p.assets,
-              compiler: p.compiler,
-            }),
-          });
-          added++;
-        }
+      const { added, skipped } = DEMO
+        ? await demoApi('/restore', { method: 'POST', data: { projects: backup.projects } })
+        : await api('/restore', { method: 'POST', body: JSON.stringify({ projects: backup.projects }) });
       setProjects(await api('/projects'));
       setStorageKey((k) => k + 1);
       notify(
@@ -1017,24 +1126,29 @@ function App() {
           <button className="top-btn" onClick={() => setShowHistory(true)} title="Versions et comparaison">
             <History size={15} /> <span>Historique</span>
           </button>
-          {DEMO && (
-            <button
-              className={'top-btn' + (commentsOpen ? ' selected' : '')}
-              onClick={() => setCommentsOpen((v) => !v)}
-              aria-expanded={commentsOpen}
-              title="Commentaires sur le code"
-            >
-              <MessageSquare size={15} /> <span>Commentaires</span>
-              {comments.some((c) => !c.resolved) && (
-                <span className="badge">{comments.filter((c) => !c.resolved).length}</span>
-              )}
-            </button>
-          )}
-          {DEMO && (
-            <button className="top-btn" onClick={openShare} title="Partager une copie en lecture seule par un lien">
-              <Share2 size={15} /> <span>Partager</span>
-            </button>
-          )}
+          <button
+            className={'top-btn' + (revisionsOpen ? ' selected' : '')}
+            onClick={() => setRevisionsOpen((v) => !v)}
+            aria-expanded={revisionsOpen}
+            title="Suivi des modifications et révisions"
+          >
+            <GitCompare size={15} /> <span>Révisions</span>
+            {trackedChanges.length > 0 && <span className="badge">{trackedChanges.length}</span>}
+          </button>
+          <button
+            className={'top-btn' + (commentsOpen ? ' selected' : '')}
+            onClick={() => setCommentsOpen((v) => !v)}
+            aria-expanded={commentsOpen}
+            title="Commentaires sur le code"
+          >
+            <MessageSquare size={15} /> <span>Commentaires</span>
+            {comments.some((c) => !c.resolved) && (
+              <span className="badge">{comments.filter((c) => !c.resolved).length}</span>
+            )}
+          </button>
+          <button className="top-btn" onClick={openShare} title="Partager une copie en lecture seule par un lien">
+            <Share2 size={15} /> <span>Partager</span>
+          </button>
           <button className="top-btn" onClick={() => setWordCountOpen(true)} title="Nombre de mots">
             <CaseSensitive size={15} /> <span>Mots</span>
           </button>
@@ -1171,8 +1285,20 @@ function App() {
             <div className="collab">
               <Users size={15} />
               <div>
-                <b>{DEMO ? 'Essai individuel' : 'Temps réel prêt'}</b>
-                <small>{DEMO ? 'Sauvegarde dans ce navigateur' : 'Synchronisation multi-onglets via WebSocket'}</small>
+                <b>
+                  {DEMO
+                    ? 'Synchro multi-onglets'
+                    : peers.length > 1
+                      ? `${peers.length} sessions actives`
+                      : 'Temps réel prêt'}
+                </b>
+                <small>
+                  {DEMO
+                    ? 'Sauvegarde locale + BroadcastChannel'
+                    : peers.length > 1
+                      ? peers.map((p) => `${p.name} (${p.file}:${p.line})`).join(' · ')
+                      : 'Synchronisation multi-onglets via WebSocket'}
+                </small>
               </div>
             </div>
           </div>
@@ -1211,7 +1337,14 @@ function App() {
               </button>
             </div>
           </div>
-          <EditorToolbar editor={editorRef} onBea={startBea} onAssistant={openAssistant} beamer={isBeamer} />
+          <EditorToolbar
+            editor={editorRef}
+            onBea={startBea}
+            onAssistant={openAssistant}
+            onVisual={(tab) => setVisualOpen(tab || 'table')}
+            onBibImport={() => setBibImportOpen(true)}
+            beamer={isBeamer}
+          />
           <input
             ref={photoRef}
             hidden
@@ -1235,6 +1368,20 @@ function App() {
                 notify={notify}
               />
             </Suspense>
+          )}
+          {revisionsOpen && (
+            <TrackChangesPanel
+              files={currentFiles}
+              active={active}
+              code={code}
+              history={project.history}
+              onUpdateFile={updateAnyFile}
+              onMarkSelection={markSelectionAsChange}
+              onJump={(file, line, start, end) =>
+                openAt(file, start != null ? { line, start, end } : lineRange(currentFiles[file] ?? '', line))
+              }
+              onClose={() => setRevisionsOpen(false)}
+            />
           )}
           {commentsOpen && (
             <CommentsPanel
@@ -1455,6 +1602,26 @@ function App() {
         />
       )}
       {shareOpen && <ShareDialog project={project} onClose={() => setShareOpen(false)} notify={notify} />}
+      {visualOpen && (
+        <VisualModal
+          initialTab={visualOpen}
+          selection={(() => {
+            const sel = editorRef.current?.selection();
+            return sel && sel.end > sel.start ? code.slice(sel.start, sel.end) : '';
+          })()}
+          assets={assets}
+          onInsert={(text) => editorRef.current?.insert(text)}
+          onClose={() => setVisualOpen(null)}
+        />
+      )}
+      {bibImportOpen && (
+        <BibImportDialog
+          files={currentFiles}
+          onAddBibEntry={addBibEntryToFile}
+          onCiteKey={(key) => editorRef.current?.insert(`\\cite{${key}}`)}
+          onClose={() => setBibImportOpen(false)}
+        />
+      )}
       {wordCountOpen && (
         <WordCountDialog files={currentFiles} main={project.main} onClose={() => setWordCountOpen(false)} />
       )}

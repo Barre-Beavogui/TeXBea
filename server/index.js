@@ -7,6 +7,7 @@ import {
   MAX_PROJECT_SIZE,
 } from '../src/project-tools.js';
 import { compilers, effectiveCompiler, isCompiler } from '../src/compilers.js';
+import { cleanComment, mergeComments } from '../src/share.js';
 import express from 'express';
 import crypto from 'crypto';
 import fs from 'fs';
@@ -187,6 +188,49 @@ app.post('/api/auth/logout', auth, (req, res) => {
   for (const [t, u] of sessions) if (u === req.userId) sessions.delete(t);
   res.json({ ok: true });
 });
+app.get('/api/backup', auth, async (req, res) => {
+  const d = await db();
+  res.json(
+    d.projects
+      .filter((p) => p.ownerId === req.userId)
+      .map((p) => ({
+        ...p,
+        assets: { ...(p.assets || {}) },
+        history: [...(p.history || [])],
+        comments: [...(p.comments || [])],
+      })),
+  );
+});
+app.post('/api/restore', auth, async (req, res) => {
+  try {
+    const d = await db();
+    let added = 0,
+      skipped = 0;
+    for (const input of req.body?.projects || []) {
+      const same = d.projects.find((p) => p.ownerId === req.userId && p.id === input.id);
+      if (same && same.updatedAt === input.updatedAt) {
+        skipped++;
+        continue;
+      }
+      const data = validateProject(input);
+      d.projects.push({
+        ...data,
+        id: same || !input.id || d.projects.some((p) => p.id === input.id) ? id() : input.id,
+        ownerId: req.userId,
+        name: same ? `${data.name} (sauvegarde)`.slice(0, 80) : data.name,
+        deleted: !!input.deleted,
+        updatedAt: input.updatedAt || new Date().toISOString(),
+        history: (input.history || []).slice(-20),
+        comments: input.comments || [],
+      });
+      added++;
+    }
+    await save(d);
+    res.json({ added, skipped });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
 app.get('/api/projects', auth, async (req, res) => {
   const d = await db();
   res.json(
@@ -351,6 +395,54 @@ app.post('/api/projects/:pid/restore/:sid', auth, async (req, res) => {
   await save(d);
   res.json(publicProject(p));
 });
+app.post('/api/projects/:pid/comments/merge', auth, async (req, res) => {
+  const d = await db();
+  const p = d.projects.find((x) => x.id === req.params.pid && x.ownerId === req.userId);
+  if (!p) return res.sendStatus(404);
+  const merged = mergeComments(p.comments || [], req.body?.comments);
+  p.comments = merged.comments;
+  p.updatedAt = new Date().toISOString();
+  await save(d);
+  broadcast(p.id, { type: 'comments', comments: p.comments });
+  res.json(merged);
+});
+app.post('/api/projects/:pid/comments', auth, async (req, res) => {
+  const d = await db();
+  const p = d.projects.find((x) => x.id === req.params.pid && x.ownerId === req.userId);
+  if (!p) return res.sendStatus(404);
+  const c = cleanComment({ ...(req.body || {}), id: id(), at: new Date().toISOString() });
+  if (!c) return res.status(400).json({ error: 'Commentaire vide' });
+  p.comments = p.comments || [];
+  p.comments.push(c);
+  p.updatedAt = new Date().toISOString();
+  await save(d);
+  broadcast(p.id, { type: 'comments', comments: p.comments });
+  res.json({ comments: p.comments });
+});
+app.patch('/api/projects/:pid/comments/:cid', auth, async (req, res) => {
+  const d = await db();
+  const p = d.projects.find((x) => x.id === req.params.pid && x.ownerId === req.userId);
+  if (!p) return res.sendStatus(404);
+  p.comments = p.comments || [];
+  const c = p.comments.find((x) => x.id === req.params.cid);
+  if (!c) return res.status(404).json({ error: 'Commentaire introuvable' });
+  if ('resolved' in (req.body || {})) c.resolved = !!req.body.resolved;
+  if (typeof req.body?.text === 'string' && req.body.text.trim()) c.text = req.body.text.trim().slice(0, 4000);
+  p.updatedAt = new Date().toISOString();
+  await save(d);
+  broadcast(p.id, { type: 'comments', comments: p.comments });
+  res.json({ comments: p.comments });
+});
+app.delete('/api/projects/:pid/comments/:cid', auth, async (req, res) => {
+  const d = await db();
+  const p = d.projects.find((x) => x.id === req.params.pid && x.ownerId === req.userId);
+  if (!p) return res.sendStatus(404);
+  p.comments = (p.comments || []).filter((x) => x.id !== req.params.cid);
+  p.updatedAt = new Date().toISOString();
+  await save(d);
+  broadcast(p.id, { type: 'comments', comments: p.comments });
+  res.json({ comments: p.comments });
+});
 async function latexmkAvailable() {
   return await new Promise((r) => {
     const c = spawn(process.env.LATEX_ENGINE || 'latexmk', ['-v']);
@@ -435,8 +527,12 @@ app.use((err, req, res, next) => {
 const server = app.listen(PORT, () => console.log(`TeXBea server: http://localhost:${PORT}`));
 const wss = new WebSocketServer({ server, path: '/ws' });
 const rooms = new Map();
-function broadcast(pid, msg) {
-  for (const ws of rooms.get(pid) || []) if (ws.readyState === 1) ws.send(JSON.stringify(msg));
+function broadcast(pid, msg, except = null) {
+  for (const ws of rooms.get(pid) || []) if (ws !== except && ws.readyState === 1) ws.send(JSON.stringify(msg));
+}
+function broadcastPresence(pid) {
+  const peers = [...(rooms.get(pid) || [])].filter((ws) => ws.readyState === 1 && ws.peerInfo).map((ws) => ws.peerInfo);
+  broadcast(pid, { type: 'presence', peers });
 }
 wss.on('connection', async (ws, req) => {
   const u = new URL(req.url, 'http://x');
@@ -444,14 +540,33 @@ wss.on('connection', async (ws, req) => {
     pid = u.searchParams.get('project');
   if (!sessions.has(token) || !pid) return ws.close();
   const data = await db();
+  const user = data.users.find((x) => x.id === sessions.get(token));
   if (!data.projects.some((p) => p.id === pid && p.ownerId === sessions.get(token))) return ws.close();
+  ws.peerInfo = {
+    peerId: id().slice(0, 8),
+    name: user?.name || 'Collaborateur',
+    file: 'main.tex',
+    line: 1,
+  };
   if (!rooms.has(pid)) rooms.set(pid, new Set());
   rooms.get(pid).add(ws);
+  broadcastPresence(pid);
   ws.on('message', (raw) => {
     try {
       const m = JSON.parse(raw);
-      if (m.type === 'cursor') broadcast(pid, m);
+      if (m.type === 'cursor') {
+        ws.peerInfo = {
+          ...ws.peerInfo,
+          name: String(m.name || ws.peerInfo.name).slice(0, 40),
+          file: String(m.file || ws.peerInfo.file),
+          line: Number(m.line) || 1,
+        };
+        broadcastPresence(pid);
+      }
     } catch {}
   });
-  ws.on('close', () => rooms.get(pid)?.delete(ws));
+  ws.on('close', () => {
+    rooms.get(pid)?.delete(ws);
+    broadcastPresence(pid);
+  });
 });

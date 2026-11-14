@@ -3538,3 +3538,294 @@ button.link:hover,
   min-width: 0;
   font: 12px var(--font-mono);
 }
+
+/* ---------- Visual Modal, Track Changes & Bibliography Import ---------- */
+.visual-open-btn {
+  width: 100%;
+  margin-top: 8px;
+  font-size: 12px;
+}
+.visual-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 10px;
+}
+.visual-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+.visual-controls label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.visual-meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.visual-paste {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+.visual-table-scroll {
+  max-height: 280px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.visual-grid-editor {
+  width: 100%;
+  border-collapse: collapse;
+}
+.visual-grid-editor th,
+.visual-grid-editor td {
+  padding: 4px;
+  border: 1px solid var(--border);
+}
+.visual-grid-editor tr.is-header td input {
+  font-weight: 600;
+}
+.visual-grid-editor td input {
+  width: 100%;
+  min-width: 90px;
+  border: 0;
+  background: transparent;
+}
+.col-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.visual-code-preview {
+  margin: 0;
+  padding: 10px;
+  max-height: 160px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  font: 12px/1.5 var(--font-mono);
+}
+.visual-math-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.visual-math-split {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 12px;
+}
+.visual-math-input label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+}
+.visual-math-Input textarea,
+.visual-math-input textarea {
+  font: 13px var(--font-mono);
+}
+.visual-math-preview-box {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+.math-live-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 84px;
+  font: 20px/1.5 var(--font-serif);
+  color: var(--text);
+  overflow: auto;
+}
+.math-frac {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  vertical-align: middle;
+  margin: 0 3px;
+  font-size: 0.85em;
+}
+.math-num {
+  padding: 0 4px;
+  border-bottom: 1px solid currentColor;
+}
+.math-den {
+  padding: 0 4px;
+}
+.math-matrix {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  vertical-align: middle;
+}
+.math-matrix table {
+  border-collapse: collapse;
+}
+.math-matrix td {
+  padding: 2px 6px;
+  text-align: center;
+}
+.math-delim {
+  font-size: 1.6em;
+  font-weight: 300;
+}
+.visual-matrix-builder {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+.matrix-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.matrix-row {
+  display: flex;
+  gap: 4px;
+}
+.matrix-row input {
+  width: 80px;
+  font: 12px var(--font-mono);
+  text-align: center;
+}
+.visual-fig-thumb img {
+  max-height: 140px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+
+/* Track changes */
+.track-mode-tabs {
+  display: inline-flex;
+  gap: 4px;
+}
+.track-mode-tabs button.on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.track-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+}
+.track-mark-btns,
+.track-bulk {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.track-replace-box {
+  display: flex;
+  gap: 6px;
+}
+.track-replace-box input {
+  flex: 1;
+}
+.track-add {
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: var(--ins-bg);
+  color: var(--ins-text);
+  text-decoration: none;
+  font: 12px var(--font-mono);
+}
+.track-del {
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: var(--del-bg);
+  color: var(--del-text);
+  font: 12px var(--font-mono);
+}
+
+/* Bib import */
+.bib-search-bar {
+  display: flex;
+  gap: 8px;
+}
+.bib-search-bar input {
+  flex: 1;
+}
+.bib-results {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 340px;
+  overflow: auto;
+}
+.bib-result-card {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+.bib-result-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+.bib-result-main pre {
+  margin: 6px 0 0;
+  padding: 8px;
+  overflow: auto;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  font: 11.5px var(--font-mono);
+}
+.bib-result-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.bib-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.bib-form-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12.5px;
+}
+.bib-form-grid .span-2 {
+  grid-column: 1 / -1;
+}
+@media (max-width: 720px) {
+  .visual-math-split,
+  .visual-meta,
+  .bib-form-grid {
+    grid-template-columns: 1fr;
+  }
+  .bib-result-card {
+    flex-direction: column;
+  }
+}

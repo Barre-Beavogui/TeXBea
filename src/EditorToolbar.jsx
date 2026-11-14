@@ -16,6 +16,8 @@ import {
   ChevronDown,
   Camera,
   Presentation,
+  BookOpen,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { aiActions } from './ai-actions.js';
 
@@ -171,7 +173,7 @@ ${body}
 \\end{table}`;
 }
 
-function TableDialog({ onInsert, onClose }) {
+function TableDialog({ onInsert, onVisual, onClose }) {
   const [rows, setRows] = useState(3),
     [cols, setCols] = useState(3),
     [borders, setBorders] = useState(true);
@@ -205,6 +207,18 @@ function TableDialog({ onInsert, onClose }) {
       <label>
         <input type="checkbox" checked={borders} onChange={(e) => setBorders(e.target.checked)} /> Bordures
       </label>
+      {onVisual && (
+        <button
+          type="button"
+          className="visual-open-btn"
+          onClick={() => {
+            onClose();
+            onVisual('table');
+          }}
+        >
+          Éditeur visuel / CSV…
+        </button>
+      )}
     </div>
   );
 }
@@ -292,7 +306,7 @@ const slideSnippets = [
   ['Mot mis en évidence', '\\alert{${}}'],
 ];
 
-export default function EditorToolbar({ editor, onBea, onAssistant, beamer = false }) {
+export default function EditorToolbar({ editor, onBea, onAssistant, onVisual, onBibImport, beamer = false }) {
   const [open, setOpen] = useState(null);
   const ed = () => editor.current;
   const insert = (s) => ed()?.insert(s);
@@ -402,6 +416,15 @@ export default function EditorToolbar({ editor, onBea, onAssistant, beamer = fal
         <button title="Citation bibliographique" aria-label="Citation" onClick={() => insert('\\cite{${}}')}>
           <Quote size={15} />
         </button>
+        {onBibImport && (
+          <button
+            title="Importer une référence bibliographique (DOI, arXiv, recherche ou saisie .bib)"
+            aria-label="Importer une référence BibTeX"
+            onClick={onBibImport}
+          >
+            <BookOpen size={15} />
+          </button>
+        )}
         <button
           title="Figure"
           aria-label="Figure"
@@ -416,6 +439,15 @@ export default function EditorToolbar({ editor, onBea, onAssistant, beamer = fal
         <button title="Tableau" aria-label="Tableau" aria-expanded={open === 'table'} onClick={() => toggle('table')}>
           <Table size={15} />
         </button>
+        {onVisual && (
+          <button
+            title="Assistant visuel : tableau interactif, formule avec aperçu en direct, matrice et figure"
+            aria-label="Assistant visuel"
+            onClick={() => onVisual('table')}
+          >
+            <SlidersHorizontal size={15} />
+          </button>
+        )}
         <button
           title="Commenter (Ctrl/Cmd+/)"
           aria-label="Commenter ou décommenter"
@@ -459,6 +491,7 @@ export default function EditorToolbar({ editor, onBea, onAssistant, beamer = fal
             insert(s);
             setOpen(null);
           }}
+          onVisual={onVisual}
           onClose={() => setOpen(null)}
         />
       )}
