@@ -428,7 +428,12 @@ function App() {
       if (engine === 'pdflatex' && needsUnicodeEngine(currentFiles) && !auto)
         notify('fontspec / polyglossia demandent XeLaTeX ou LuaLaTeX : change le compilateur dans le menu à gauche.');
       // Opt-in: compile on the isolated server (any engine, no heavy download). Falls back to the browser if it is down.
-      const onServer = DEMO && settings.serverCompile && cloudSync.providers?.compile && !!cloudSync.user;
+      const onServer =
+        DEMO &&
+        settings.serverCompile &&
+        cloudSync.providers?.compile &&
+        !!cloudSync.user &&
+        cloudSync.billing?.subscription?.serverCompile;
       let j;
       if (onServer) {
         setCompilePhase('Compilation sur le serveur…');
@@ -1748,7 +1753,12 @@ function App() {
           settings={settings}
           onChange={updateSettings}
           onClose={() => setSettingsOpen(false)}
-          serverCompile={DEMO && !!cloudSync.providers?.compile && !!cloudSync.user}
+          serverCompile={
+            DEMO &&
+            !!cloudSync.providers?.compile &&
+            !!cloudSync.user &&
+            !!cloudSync.billing?.subscription?.serverCompile
+          }
         />
       )}
       {profileOpen && !user.guest && (

@@ -34,6 +34,7 @@ test('jobs are validated', () => {
   assert.throws(() => validateJob(job({ files: { 'main.tex': 'x', '../up.tex': 'y' } })), JobError);
   assert.throws(() => validateJob(job({ files: { 'main.tex': 'x'.repeat(31 * 1024 * 1024) } })), /volumineux/);
   assert.equal(validateJob(job()).main, 'main.tex');
+  assert.equal(validateJob(job({ timeoutSec: 120 })).timeoutSec, 120);
 });
 test('the job container has no network and tight limits', () => {
   const { cmd, args } = command(validateJob(job()), '/tmp/j', {});
@@ -115,6 +116,7 @@ async function signedIn(env) {
 test('the Pages function needs a session, forwards to the service and hides nothing about errors', async () => {
   const env = { DB: fakeD1(), AUTH_SECRET: 's' };
   const call = await signedIn(env);
+  const uid = env.DB.raw.prepare('SELECT id FROM users').get().id;
   // Not configured: the feature is off.
   assert.equal((await call('POST', '/api/compile', job())).status, 404);
   assert.equal((await (await call('GET', '/api/auth/providers')).json()).compile, false);
@@ -126,6 +128,12 @@ test('the Pages function needs a session, forwards to the service and hides noth
     env,
   );
   assert.equal(anon.status, 401);
+  // Free plan: refused. Paid plan: allowed, with the plan's time limit.
+  assert.equal((await call('POST', '/api/compile', job())).status, 403);
+  await call('GET', '/api/billing/plans');
+  env.DB.raw
+    .prepare("INSERT INTO subscriptions (user_id, plan, status, updated_at) VALUES (?, 'standard', 'active', 0)")
+    .run(uid);
   const realFetch = globalThis.fetch;
   const seen = [];
   try {
@@ -138,7 +146,13 @@ test('the Pages function needs a session, forwards to the service and hides noth
     assert.equal((await ok.json()).pdf, 'JVBERg==');
     assert.equal(seen[0].url, 'https://compile.example/compile');
     assert.equal(seen[0].init.headers.authorization, 'Bearer ' + 'x'.repeat(32));
-    assert.deepEqual(Object.keys(JSON.parse(seen[0].init.body)).sort(), ['assets', 'compiler', 'files', 'main']);
+    assert.deepEqual(Object.keys(JSON.parse(seen[0].init.body)).sort(), [
+      'assets',
+      'compiler',
+      'files',
+      'main',
+      'timeoutSec',
+    ]);
     globalThis.fetch = async () => new Response(JSON.stringify({ ok: false, log: 'Undefined control sequence' }));
     const bad = await call('POST', '/api/compile', job());
     assert.equal(bad.status, 422);
