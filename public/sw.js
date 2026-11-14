@@ -68,6 +68,8 @@ self.addEventListener('fetch', (event) => {
   const request = event.request;
   if (request.method !== 'GET') return;
   const url = new URL(request.url);
+  // The cloud API carries private data and sign-in redirects: never cached, never answered by the worker.
+  if (url.pathname.startsWith('/api/')) return;
   if (request.mode === 'navigate' && url.href.startsWith(base))
     return event.respondWith(networkFirst(request, SHELL, base));
   if (url.href.startsWith(base + 'assets/')) return event.respondWith(cacheFirst(request, SHELL));

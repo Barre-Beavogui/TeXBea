@@ -3829,3 +3829,13 @@ button.link:hover,
     flex-direction: column;
   }
 }
+
+.cloud-login {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+.cloud-login input {
+  min-width: 200px;
+}

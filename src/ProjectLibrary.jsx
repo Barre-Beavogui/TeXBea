@@ -42,6 +42,7 @@ export default function ProjectLibrary({
   onBackup,
   onRestore,
   autoBackup,
+  cloudSync,
   storageKey,
   mode,
 }) {
@@ -222,6 +223,7 @@ export default function ProjectLibrary({
               onBackup={onBackup}
               onRestore={onRestore}
               auto={autoBackup}
+              cloud={cloudSync}
               refreshKey={storageKey}
             />
             <section className="workspace-note">

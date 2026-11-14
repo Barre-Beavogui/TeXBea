@@ -1,10 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { HardDrive, ShieldCheck, ShieldAlert, Archive, ArchiveRestore, FolderSync } from 'lucide-react';
+import { HardDrive, ShieldCheck, ShieldAlert, Archive, ArchiveRestore, FolderSync, Cloud, Mail } from 'lucide-react';
 import { formatSize } from './project-tools.js';
 import { LAST_BACKUP_KEY, backupReminder } from './backup.js';
 
 // Browser space used, whether the browser promised to keep the projects, and the last full backup.
-export default function StorageStatus({ projects, browser, onBackup, onRestore, auto, refreshKey }) {
+export default function StorageStatus({ projects, browser, onBackup, onRestore, auto, cloud, refreshKey }) {
   const picker = useRef(null);
   const [estimate, setEstimate] = useState(null);
   const [persisted, setPersisted] = useState(null);
@@ -76,6 +76,7 @@ export default function StorageStatus({ projects, browser, onBackup, onRestore, 
         )}
       </p>
       {auto && <AutoBackupLine auto={auto} date={date} />}
+      {cloud && <CloudLine cloud={cloud} date={date} />}
       <div className="storage-actions">
         <button onClick={onBackup}>
           <Archive size={15} /> Tout sauvegarder
@@ -160,6 +161,124 @@ function AutoBackupLine({ auto, date }) {
         </button>{' '}
         <button className="link" onClick={auto.disable}>
           Désactiver
+        </button>
+      </span>
+    </p>
+  );
+}
+
+// Online copy: signed out → three ways to sign in, none with a password; signed in → state of the synchronisation.
+function CloudLine({ cloud, date }) {
+  const [step, setStep] = useState('');
+  const [email, setEmail] = useState('');
+  const [code, setCode] = useState('');
+  const [message, setMessage] = useState('');
+  const [working, setWorking] = useState(false);
+  const { status, providers, user, error, last, usage, notice } = cloud;
+  if (status === 'unavailable' || (status === 'loading' && !notice)) return null;
+  const run = async (task) => {
+    setWorking(true);
+    setMessage('');
+    try {
+      await task();
+    } catch (e) {
+      setMessage(e.message);
+    }
+    setWorking(false);
+  };
+  if (!user)
+    return (
+      <div className="storage-line">
+        <Cloud size={16} />
+        <span>
+          <b>Copie en ligne</b> : connecte-toi, sans mot de passe, pour retrouver tes projets sur tous tes appareils.
+          Ils restent aussi dans ce navigateur.
+          {(notice || error) && <em> {notice || error}</em>}
+          <span className="cloud-login">
+            {providers?.google && <button onClick={() => cloud.login('google')}>Continuer avec Google</button>}
+            {providers?.github && <button onClick={() => cloud.login('github')}>Continuer avec GitHub</button>}
+            {providers?.email && !step && (
+              <button onClick={() => setStep('email')}>
+                <Mail size={14} /> Recevoir un code par e-mail
+              </button>
+            )}
+          </span>
+          {step === 'email' && (
+            <form
+              className="cloud-login"
+              onSubmit={(e) => {
+                e.preventDefault();
+                run(async () => {
+                  await cloud.requestCode(email);
+                  setStep('code');
+                  setMessage('Code envoyé : regarde ta boîte mail (et les indésirables).');
+                });
+              }}
+            >
+              <input
+                type="email"
+                required
+                autoFocus
+                placeholder="ton@email.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+              <button disabled={working}>Envoyer le code</button>
+            </form>
+          )}
+          {step === 'code' && (
+            <form
+              className="cloud-login"
+              onSubmit={(e) => {
+                e.preventDefault();
+                run(() => cloud.verifyCode(email, code));
+              }}
+            >
+              <input
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                required
+                autoFocus
+                maxLength={6}
+                placeholder="Code à 6 chiffres"
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+              />
+              <button disabled={working}>Valider</button>
+            </form>
+          )}
+          {message && <em> {message}</em>}
+        </span>
+      </div>
+    );
+  return (
+    <p className={'storage-line ' + (status === 'error' ? 'risk' : 'ok')}>
+      <Cloud size={16} />
+      <span>
+        Copie en ligne active pour {user.email}.{' '}
+        {status === 'syncing'
+          ? 'Synchronisation…'
+          : status === 'error'
+            ? error
+            : last
+              ? `Synchronisé le ${date(last)}.`
+              : ''}
+        {usage ? ` ${(usage.bytes / 1e6).toFixed(1)} Mo sur ${(usage.quota / 1e6).toFixed(0)} Mo.` : ''} Tes projets
+        sont stockés chez TeXBea (chiffrés pendant le transfert, pas de bout en bout).{' '}
+        <button className="link" onClick={cloud.syncNow}>
+          Synchroniser
+        </button>{' '}
+        <button className="link" onClick={cloud.logout}>
+          Se déconnecter
+        </button>{' '}
+        <button
+          className="link"
+          onClick={() => {
+            if (confirm('Supprimer ton compte et toutes les copies en ligne ? Tes projets restent dans ce navigateur.'))
+              cloud.deleteAccount().catch((e) => alert(e.message));
+          }}
+        >
+          Supprimer mon compte
         </button>
       </span>
     </p>

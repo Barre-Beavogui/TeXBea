@@ -22,6 +22,7 @@ import SharedView from './SharedView.jsx';
 import ShareDialog from './ShareDialog.jsx';
 import { backupBlob, backupFileName, readBackup, LAST_BACKUP_KEY } from './backup.js';
 import useAutoBackup, { markChanged } from './useAutoBackup.js';
+import useCloudSync from './useCloudSync.js';
 import CodeEditor from './CodeEditor.jsx';
 import EditorToolbar from './EditorToolbar.jsx';
 import { LogPanel, ProjectSearch, HistoryPanel, WordCountDialog, SettingsDialog } from './WorkspacePanels.jsx';
@@ -65,7 +66,10 @@ const PdfViewer = lazy(() => import('./PdfViewer.jsx'));
 const API = '/api';
 async function api(path, opt = {}) {
   // Any write (not a sign-in) makes the next automatic backup due.
-  if (opt.method && opt.method !== 'GET' && !path.startsWith('/auth')) markChanged();
+  if (opt.method && opt.method !== 'GET' && !path.startsWith('/auth')) {
+    markChanged();
+    globalThis.dispatchEvent?.(new Event('texbea-changed'));
+  }
   if (DEMO) return demoApi(path, opt);
   const token = localStorage.tn_token;
   const r = await fetch(API + path, {
@@ -203,6 +207,19 @@ function App() {
     photoRef = useRef(),
     assistantSelection = useRef();
   const autoBackup = useAutoBackup({ api, enabled: !!user, onChange: () => setStorageKey((k) => k + 1) });
+  const openRef = useRef(null);
+  openRef.current = library ? null : project?.id;
+  const cloudSync = useCloudSync({
+    api,
+    enabled: DEMO && !!user,
+    openId: () => openRef.current,
+    onChange: () => {
+      setStorageKey((k) => k + 1);
+      api('/projects')
+        .then(setProjects)
+        .catch(() => {});
+    },
+  });
   useEffect(
     () => () => {
       if (pdf.startsWith('blob:')) URL.revokeObjectURL(pdf);
@@ -1025,6 +1042,7 @@ function App() {
           onBackup={backupAll}
           onRestore={restoreBackup}
           autoBackup={autoBackup}
+          cloudSync={cloudSync}
           storageKey={storageKey}
           mode={DEMO}
         />

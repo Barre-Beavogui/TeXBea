@@ -147,6 +147,22 @@ Validation : recherche, création, reprise et navigation de projets ; compilatio
 
 L’éditeur distingue les commandes (cuivre), commentaires (gris), formules (violet), nombres (doré), accolades et environnements (cyan). La coloration conserve exactement le source et suit le défilement dans les deux directions. Les équations entre `$`, `$$`, `\(`, `\[` et les environnements mathématiques usuels sont reconnues.
 
+## Comptes et copie en ligne (Cloudflare Pages)
+
+Les projets restent d'abord dans le navigateur. Sur un site hébergé avec Cloudflare Pages, le dossier `functions/` ajoute une copie en ligne par compte, sans mot de passe : connexion avec Google, GitHub ou un code reçu par e-mail.
+
+Mise en place (une fois) :
+
+1. Créer une base D1 et y appliquer `migrations/0001_init.sql`.
+2. Dans le projet Pages (Settings → Bindings), ajouter une liaison D1 nommée `DB`.
+3. Dans Settings → Variables and Secrets, ajouter les secrets des méthodes voulues :
+   - GitHub : `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` (callback `https://<domaine>/api/auth/github/callback`)
+   - Google : `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` (callback `https://<domaine>/api/auth/google/callback`)
+   - Code par e-mail : `RESEND_API_KEY` (et `MAIL_FROM`), ou une liaison Cloudflare Email Sending nommée `EMAIL`
+   - Dans tous les cas : `AUTH_SECRET` (texte aléatoire long). Optionnel : `QUOTA_BYTES` (200 Mo par défaut).
+
+Une méthode non configurée n'est simplement pas proposée. Les projets sont stockés chez l'hébergeur, chiffrés pendant le transfert mais pas de bout en bout. En cas de modification des deux côtés, la version du cloud est gardée comme copie locale : rien n'est écrasé.
+
 ## GitHub Pages
 
 Site public : https://barre-beavogui.github.io/TeXBea/
