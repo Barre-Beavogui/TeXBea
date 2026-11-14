@@ -112,3 +112,28 @@ test('le mode navigateur crée une présentation Beamer avec son thème', async 
   assert.deepEqual(Object.keys(p.files).sort(), ['beamerthemeTeXBeaPro.sty', 'main.tex']);
   assert.match(p.files['main.tex'], /\{HTML\}\{0F766E\}/);
 });
+
+test('archive et balises : enregistrées, nettoyées, listées, non héritées par la copie archivée', async () => {
+  const p = await call('/projects', 'POST', { name: 'Cours' });
+  await call(`/projects/${p.id}`, 'PUT', { archived: true, tags: [' TP ', 'TP', '', 'Cours'] });
+  let item = (await call('/projects')).find((x) => x.id === p.id);
+  assert.equal(item.archived, true);
+  assert.deepEqual(item.tags, ['TP', 'Cours']);
+  assert.equal(item.fromShare, false);
+  const copy = await call(`/projects/${p.id}/duplicate`, 'POST', {});
+  assert.equal(copy.archived, undefined);
+  assert.deepEqual(copy.tags, ['TP', 'Cours']);
+  await call(`/projects/${p.id}`, 'PUT', { archived: false, tags: [] });
+  item = (await call('/projects')).find((x) => x.id === p.id);
+  assert.equal(item.archived, false);
+  assert.deepEqual(item.tags, []);
+});
+
+test('une copie de projet partagé garde son origine', async () => {
+  const p = await call('/projects', 'POST', {
+    name: 'Reçu',
+    files: { 'main.tex': '\\documentclass{article}' },
+    fromShare: true,
+  });
+  assert.equal((await call('/projects')).find((x) => x.id === p.id).fromShare, true);
+});

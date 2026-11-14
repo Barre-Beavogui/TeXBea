@@ -28,6 +28,21 @@ export function safePath(name) {
       )
   );
 }
+// Labels the person puts on a project: short, unique, a handful at most.
+export function cleanTags(list) {
+  if (!Array.isArray(list)) return [];
+  return [
+    ...new Set(
+      list
+        .map((t) =>
+          String(t ?? '')
+            .trim()
+            .slice(0, 30),
+        )
+        .filter(Boolean),
+    ),
+  ].slice(0, 12);
+}
 export function validateProject(input) {
   if (!input || typeof input !== 'object' || !input.files || Array.isArray(input.files))
     throw Error('Projet invalide.');
@@ -56,6 +71,10 @@ export function validateProject(input) {
     throw Error('Aucun fichier principal .tex valide.');
   const project = { name: String(input.name || 'Projet importé').slice(0, 80), main, files, assets };
   if (isCompiler(input.compiler)) project.compiler = input.compiler;
+  const tags = cleanTags(input.tags);
+  if (tags.length) project.tags = tags;
+  if (input.archived === true) project.archived = true;
+  if (input.fromShare === true) project.fromShare = true;
   return project;
 }
 export function downloadBlob(blob, name) {
