@@ -25,6 +25,7 @@ import {
   CircleHelp,
   ChevronUp,
   RefreshCw,
+  Settings,
   X,
 } from 'lucide-react';
 import { TagDialog, HelpDialog, ReferencesView } from './LibraryExtras.jsx';
@@ -64,6 +65,7 @@ const TITLES = {
   archive: 'Archive',
   trash: 'Corbeille',
   refs: 'Bibliothèque',
+  settings: 'Paramètres',
 };
 const EMPTY = {
   all: ['Ton premier projet commence ici', 'Crée un projet pour ouvrir l’éditeur LaTeX.'],
@@ -236,6 +238,7 @@ export default function ProjectLibrary({
             <button type="button" onClick={() => onNew('import')}>
               <Upload size={17} /> Importer .zip / .tex
             </button>
+            {navItem('settings', Settings, 'Paramètres')}
           </nav>
         </div>
         <div className="lib-side-extra">
@@ -251,15 +254,6 @@ export default function ProjectLibrary({
               </button>
             </section>
           )}
-          <StorageStatus
-            projects={projects}
-            browser={mode}
-            onBackup={onBackup}
-            onRestore={onRestore}
-            auto={autoBackup}
-            cloud={cloudSync}
-            refreshKey={storageKey}
-          />
           <div className="lib-bottom">
             <button type="button" className="lib-help-btn" onClick={() => setHelp(true)}>
               <CircleHelp size={17} /> Aide
@@ -345,7 +339,19 @@ export default function ProjectLibrary({
           )}
         </div>
         <h1 className="lib-title">{title}</h1>
-        {view === 'refs' ? (
+        {view === 'settings' ? (
+          <div className="lib-settings">
+            <StorageStatus
+              projects={projects}
+              browser={mode}
+              onBackup={onBackup}
+              onRestore={onRestore}
+              auto={autoBackup}
+              cloud={cloudSync}
+              refreshKey={storageKey}
+            />
+          </div>
+        ) : view === 'refs' ? (
           <ReferencesView projects={projects} api={api} onOpen={onOpen} />
         ) : (
           <>

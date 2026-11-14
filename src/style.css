@@ -4872,3 +4872,7 @@ button.link:hover,
   background: var(--accent-soft);
   color: var(--accent-text);
 }
+
+.lib-settings {
+  max-width: 640px;
+}
