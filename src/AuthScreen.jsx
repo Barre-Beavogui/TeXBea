@@ -330,6 +330,10 @@ export default function AuthScreen({ api, demo = false, onAuth, onGuest, onClose
             Continuer sans compte
           </button>
         )}
+        <p className="au-legal">
+          En continuant, tu acceptes la <a href="/confidentialite.html">politique de confidentialité</a> et les{' '}
+          <a href="/mentions-legales.html">mentions légales</a>.
+        </p>
       </div>
     </div>
   );
