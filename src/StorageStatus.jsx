@@ -1,7 +1,18 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { HardDrive, ShieldCheck, ShieldAlert, Archive, ArchiveRestore, FolderSync, Cloud, Mail } from 'lucide-react';
+import {
+  HardDrive,
+  ShieldCheck,
+  ShieldAlert,
+  Archive,
+  ArchiveRestore,
+  FolderSync,
+  Cloud,
+  Mail,
+  Sparkles,
+} from 'lucide-react';
 import { formatSize } from './project-tools.js';
 import { LAST_BACKUP_KEY, backupReminder } from './backup.js';
+import PlansModal from './PlansModal.jsx';
 
 // One line of the backup card: what it is, where it stands, what can be done about it.
 function Row({ icon, tone = '', title, children, actions }) {
@@ -218,8 +229,10 @@ function CloudRow({ cloud, date }) {
   const [code, setCode] = useState('');
   const [message, setMessage] = useState('');
   const [working, setWorking] = useState(false);
-  const { status, providers, user, error, last, usage, notice } = cloud;
+  const [plansOpen, setPlansOpen] = useState(false);
+  const { status, providers, user, error, last, usage, billing, notice } = cloud;
   if (status === 'unavailable' || (status === 'loading' && !notice)) return null;
+  const sub = billing?.subscription || { plan: usage?.plan || 'free', planName: usage?.planName || 'Gratuit' };
   const run = async (task) => {
     setWorking(true);
     setMessage('');
@@ -232,7 +245,15 @@ function CloudRow({ cloud, date }) {
   };
   if (!user)
     return (
-      <Row icon={<Cloud size={16} />} title="Copie en ligne">
+      <Row
+        icon={<Cloud size={16} />}
+        title="Copie en ligne"
+        actions={
+          <Mini onClick={() => setPlansOpen(true)}>
+            <Sparkles size={13} /> Voir les offres (200 Mo à 10 Go)
+          </Mini>
+        }
+      >
         Connecte-toi, sans mot de passe, pour retrouver tes projets sur tous tes appareils. Ils restent aussi dans ce
         navigateur.
         {(notice || error) && <em> {notice || error}</em>}
@@ -291,43 +312,50 @@ function CloudRow({ cloud, date }) {
             </form>
           )}
           {message && <em> {message}</em>}
+          {plansOpen && <PlansModal cloud={cloud} onClose={() => setPlansOpen(false)} />}
         </span>
       </Row>
     );
   return (
-    <Row
-      icon={<Cloud size={16} />}
-      tone={status === 'error' ? 'risk' : 'ok'}
-      title="Copie en ligne"
-      actions={
-        <>
-          <Mini onClick={cloud.syncNow} disabled={status === 'syncing'}>
-            Synchroniser
-          </Mini>
-          <Mini onClick={cloud.logout}>Se déconnecter</Mini>
-          <Mini
-            onClick={() => {
-              if (
-                confirm('Supprimer ton compte et toutes les copies en ligne ? Tes projets restent dans ce navigateur.')
-              )
-                cloud.deleteAccount().catch((e) => alert(e.message));
-            }}
-          >
-            Supprimer mon compte
-          </Mini>
-        </>
-      }
-    >
-      Active pour {user.email}.{' '}
-      {status === 'syncing'
-        ? 'Synchronisation…'
-        : status === 'error'
-          ? error
-          : last
-            ? `Synchronisé le ${date(last)}.`
-            : ''}
-      {usage ? ` ${formatSize(usage.bytes)} sur ${formatSize(usage.quota)}.` : ''} Les projets sont stockés chez TeXBea
-      (chiffrés pendant le transfert, pas de bout en bout).
-    </Row>
+    <>
+      <Row
+        icon={<Cloud size={16} />}
+        tone={status === 'error' ? 'risk' : 'ok'}
+        title={`Copie en ligne · Offre ${sub.planName || 'Gratuit'}`}
+        actions={
+          <>
+            <Mini onClick={() => setPlansOpen(true)}>
+              <Sparkles size={13} /> {sub.plan === 'free' ? 'Passer à Standard / Pro' : 'Offres & abonnement'}
+            </Mini>
+            <Mini onClick={cloud.syncNow} disabled={status === 'syncing'}>
+              Synchroniser
+            </Mini>
+            <Mini onClick={cloud.logout}>Se déconnecter</Mini>
+            <Mini
+              onClick={() => {
+                if (
+                  confirm('Supprimer ton compte et toutes les copies en ligne ? Tes projets restent dans ce navigateur.')
+                )
+                  cloud.deleteAccount().catch((e) => alert(e.message));
+              }}
+            >
+              Supprimer mon compte
+            </Mini>
+          </>
+        }
+      >
+        Active pour {user.email}.{' '}
+        {status === 'syncing'
+          ? 'Synchronisation…'
+          : status === 'error'
+            ? error
+            : last
+              ? `Synchronisé le ${date(last)}.`
+              : ''}
+        {usage ? ` ${formatSize(usage.bytes)} sur ${formatSize(usage.quota)}.` : ''} Les projets sont stockés chez
+        TeXBea (chiffrés pendant le transfert, pas de bout en bout).
+      </Row>
+      {plansOpen && <PlansModal cloud={cloud} onClose={() => setPlansOpen(false)} />}
+    </>
   );
 }

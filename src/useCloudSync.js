@@ -15,6 +15,7 @@ export default function useCloudSync({ api, enabled, onChange, openId }) {
     error: '',
     last: null,
     usage: null,
+    billing: null,
     notice: '',
     received: [],
   });
@@ -51,13 +52,15 @@ export default function useCloudSync({ api, enabled, onChange, openId }) {
       const first = result.errors[0];
       // What other accounts shared with me; best effort, never blocks the sync.
       const received = await cloud.sharedIndex().catch(() => null);
-      if (received) patch({ received });
-      patch({
+      setState((s) => ({
+        ...s,
+        ...(received ? { received } : {}),
         status: first ? 'error' : 'idle',
         error: first ? first.message : '',
         last: Date.now(),
         usage: result.usage,
-      });
+        billing: result.subscription && s.billing ? { ...s.billing, subscription: result.subscription } : s.billing,
+      }));
     } catch (e) {
       if (e.status === 401) {
         user.current = null;
@@ -75,10 +78,13 @@ export default function useCloudSync({ api, enabled, onChange, openId }) {
 
   const refresh = useCallback(async () => {
     try {
-      const providers = await cloud.providers();
-      const me = await cloud.me();
+      const [providers, me, billing] = await Promise.all([
+        cloud.providers(),
+        cloud.me(),
+        cloud.plans().catch(() => null),
+      ]);
       user.current = me;
-      patch({ providers, user: me, status: me ? 'idle' : 'signedout' });
+      patch({ providers, user: me, billing, status: me ? 'idle' : 'signedout' });
       if (me) sync();
     } catch {
       patch({ status: 'unavailable' });
@@ -94,6 +100,16 @@ export default function useCloudSync({ api, enabled, onChange, openId }) {
           q.get('connexion') === 'ok' ? 'Connecté.' : 'La connexion a échoué. Réessaie ou choisis une autre méthode.',
       });
       q.delete('connexion');
+      history.replaceState(null, '', location.pathname + (q.size ? '?' + q : '') + location.hash);
+    }
+    if (q.has('abonnement')) {
+      patch({
+        notice:
+          q.get('abonnement') === 'ok'
+            ? 'Abonnement activé ! Ton nouveau quota cloud est disponible.'
+            : 'Souscription annulée.',
+      });
+      q.delete('abonnement');
       history.replaceState(null, '', location.pathname + (q.size ? '?' + q : '') + location.hash);
     }
     refresh();
@@ -145,6 +161,16 @@ export default function useCloudSync({ api, enabled, onChange, openId }) {
         comments: Array.isArray(project.comments) ? project.comments : [],
         from: entry.ownerName || entry.ownerEmail,
       };
+    },
+    async checkout(plan) {
+      const res = await cloud.checkout(plan);
+      if (res?.url) location.assign(res.url);
+      return res;
+    },
+    async openPortal() {
+      const res = await cloud.portal();
+      if (res?.url) location.assign(res.url);
+      return res;
     },
     async logout() {
       await cloud.logout().catch(() => {});

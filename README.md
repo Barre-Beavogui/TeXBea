@@ -160,6 +160,7 @@ Mise en place (une fois) :
    - Google : `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` (callback `https://<domaine>/api/auth/google/callback`)
    - Code par e-mail : `RESEND_API_KEY` (et `MAIL_FROM`), ou une liaison Cloudflare Email Sending nommée `EMAIL`
    - Dans tous les cas : `AUTH_SECRET` (texte aléatoire long). Optionnel : `QUOTA_BYTES` (200 Mo par défaut).
+   - Abonnements mensuels Stripe (optionnel) : la table `subscriptions` est créée automatiquement (ou via `migrations/0003_billing.sql` sur D1). Ajouter `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_STANDARD` (offre Standard, 2 Go par défaut via `QUOTA_STANDARD_BYTES`) et `STRIPE_PRICE_PRO` (offre Professionnel, 10 Go par défaut via `QUOTA_PRO_BYTES`), et pointer le webhook Stripe vers `https://<domaine>/api/billing/webhook` (événements `checkout.session.completed`, `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.payment_failed`).
 
 Une méthode non configurée n'est simplement pas proposée. Les projets sont stockés chez l'hébergeur, chiffrés pendant le transfert mais pas de bout en bout. En cas de modification des deux côtés, la version du cloud est gardée comme copie locale : rien n'est écrasé.
 

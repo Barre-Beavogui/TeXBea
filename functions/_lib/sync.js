@@ -2,11 +2,11 @@
 // Writing = upload chunks under a fresh upload id, then commit; the commit only succeeds when the client's
 // base version is still the current one, so two devices can never silently overwrite each other.
 import { json, toBytes, now, HttpError } from './util.js';
+import { getSubscription, userQuota } from './billing.js';
 
 export const CHUNK_MAX = 1_000_000;
 export const CHUNKS_MAX = 120;
 const ID = /^[A-Za-z0-9_-]{1,64}$/;
-const quota = (env) => Number(env.QUOTA_BYTES) || 200_000_000;
 
 const checkId = (v) => {
   if (!ID.test(v || '')) throw new HttpError(400, 'Identifiant invalide.');
@@ -23,9 +23,16 @@ export async function index(env, user) {
   const used = await env.DB.prepare('SELECT COALESCE(SUM(LENGTH(data)), 0) AS n FROM chunks WHERE user_id = ?')
     .bind(user.id)
     .first();
+  const subscription = await getSubscription(env, user.id);
   return json({
     projects: results.map((p) => ({ ...p, deleted: !!p.deleted, removed: !!p.removed })),
-    usage: { bytes: used?.n || 0, quota: quota(env) },
+    usage: {
+      bytes: used?.n || 0,
+      quota: subscription.quota,
+      plan: subscription.plan,
+      planName: subscription.planName,
+    },
+    subscription,
   });
 }
 
@@ -43,8 +50,12 @@ export async function putChunk(env, user, request, projectId, uploadId, seqText)
   )
     .bind(user.id, projectId, user.id, projectId)
     .first();
-  if ((used?.n || 0) + body.length > quota(env))
-    throw new HttpError(413, 'Espace cloud plein. Supprime des projets ou garde-les seulement sur cet appareil.');
+  const limit = await userQuota(env, user.id);
+  if ((used?.n || 0) + body.length > limit)
+    throw new HttpError(
+      413,
+      'Espace cloud plein. Passe à une offre supérieure, supprime des projets ou garde-les seulement sur cet appareil.',
+    );
   await env.DB.prepare(
     'INSERT OR REPLACE INTO chunks (user_id, project_id, upload_id, seq, data, created_at) VALUES (?, ?, ?, ?, ?, ?)',
   )

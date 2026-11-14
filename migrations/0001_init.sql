@@ -56,3 +56,17 @@ CREATE TABLE chunks (
   created_at INTEGER NOT NULL,
   PRIMARY KEY (user_id, project_id, upload_id, seq)
 );
+-- Per-user Stripe subscription and plan state (free, standard, pro).
+CREATE TABLE IF NOT EXISTS subscriptions (
+  user_id TEXT PRIMARY KEY,
+  plan TEXT NOT NULL DEFAULT 'free',
+  status TEXT NOT NULL DEFAULT 'active',
+  stripe_customer_id TEXT UNIQUE,
+  stripe_subscription_id TEXT UNIQUE,
+  price_id TEXT,
+  current_period_end INTEGER,
+  cancel_at_period_end INTEGER NOT NULL DEFAULT 0,
+  updated_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS subscriptions_customer ON subscriptions (stripe_customer_id);
+CREATE INDEX IF NOT EXISTS subscriptions_sub ON subscriptions (stripe_subscription_id);

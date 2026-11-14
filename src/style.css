@@ -4966,3 +4966,104 @@ button.link:hover,
   font-size: 12px;
   opacity: 0.7;
 }
+
+/* ---------- Stripe Monthly Plans Modal ---------- */
+.plans-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin-top: 14px;
+}
+.plan-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 20px 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-2);
+}
+.plan-card.popular {
+  border-color: var(--accent);
+  background: linear-gradient(165deg, var(--accent-soft), var(--surface) 60%);
+  box-shadow: var(--shadow-sm);
+}
+.plan-card.current {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+.plan-ribbon {
+  position: absolute;
+  top: -10px;
+  right: 14px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+}
+.plan-head {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.plan-head h3 {
+  margin: 0;
+  font: 600 19px var(--font-serif);
+}
+.plan-price {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+.plan-price b {
+  font: 700 28px var(--font-serif);
+  color: var(--text);
+}
+.plan-price span {
+  color: var(--text-3);
+  font-size: 13px;
+}
+.plan-quota-badge {
+  display: inline-block;
+  align-self: flex-start;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--surface-3);
+  color: var(--accent-text);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+.plan-features {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  flex: 1;
+}
+.plan-features li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--text-2);
+  line-height: 1.4;
+}
+.plan-features li svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--success);
+}
+.plan-foot .plan-btn {
+  width: 100%;
+  justify-content: center;
+}
+@media (max-width: 780px) {
+  .plans-grid {
+    grid-template-columns: 1fr;
+  }
+}

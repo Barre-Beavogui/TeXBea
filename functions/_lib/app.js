@@ -15,6 +15,7 @@ import { emailEnabled, requestCode, checkCode } from './email.js';
 import * as sync from './sync.js';
 import * as share from './share.js';
 import { compileRemote, compileEnabled } from './compile.js';
+import * as billing from './billing.js';
 
 const clientIp = (request) => request.headers.get('cf-connecting-ip') || 'unknown';
 
@@ -29,8 +30,9 @@ async function route(request, env, url, parts) {
   const method = request.method;
   const secure = url.protocol === 'https:';
   if (!env.DB) throw new HttpError(503, 'Le cloud TeXBea n’est pas configuré.');
-  if (method !== 'GET' && method !== 'HEAD' && !(parts[0] === 'auth' && parts[2] === 'callback'))
-    guardWrite(request, url);
+  const isCallback = parts[0] === 'auth' && parts[2] === 'callback';
+  const isWebhook = parts[0] === 'billing' && parts[1] === 'webhook';
+  if (method !== 'GET' && method !== 'HEAD' && !isCallback && !isWebhook) guardWrite(request, url);
 
   if (parts[0] === 'auth') {
     if (parts[1] === 'providers' && method === 'GET')
@@ -83,6 +85,7 @@ async function route(request, env, url, parts) {
     if (parts[1] === 'account' && method === 'DELETE') {
       const user = await requireUser(env, request);
       await share.dropForAccount(env, user.id, user.email);
+      await billing.dropForAccount(env, user.id);
       await deleteAccount(env, user.id);
       return json({ ok: true }, 200, { 'set-cookie': clearSessionCookie(secure) });
     }
@@ -121,6 +124,21 @@ async function route(request, env, url, parts) {
       method === 'GET'
     )
       return share.receivedChunk(env, user, parts[2], parts[3], parts[5], parts[6]);
+  }
+  if (parts[0] === 'billing') {
+    if (parts[1] === 'webhook' && method === 'POST') return billing.handleWebhook(env, request);
+    if (parts[1] === 'plans' && method === 'GET') {
+      const user = await currentUser(env, request);
+      return billing.listPlans(env, user);
+    }
+    if (parts[1] === 'checkout' && method === 'POST') {
+      const user = await requireUser(env, request);
+      return billing.createCheckout(env, user, url, await readBody(request));
+    }
+    if (parts[1] === 'portal' && method === 'POST') {
+      const user = await requireUser(env, request);
+      return billing.createPortal(env, user, url);
+    }
   }
   throw new HttpError(404, 'Introuvable.');
 }

@@ -111,6 +111,9 @@ export function cloudClient(fetchImpl = (...a) => fetch(...a)) {
     verifyCode: (email, code) => json('POST', '/auth/email/verify', { body: { email, code } }),
     logout: () => json('POST', '/auth/logout', { body: {} }),
     deleteAccount: () => json('DELETE', '/auth/account', { body: {} }),
+    plans: () => json('GET', '/billing/plans'),
+    checkout: (plan) => json('POST', '/billing/checkout', { body: { plan } }),
+    portal: () => json('POST', '/billing/portal', { body: {} }),
     index: () => json('GET', '/sync/index'),
     async upload(id, bytes, meta, base) {
       const uploadId = crypto.randomUUID();
@@ -163,6 +166,7 @@ export async function syncOnce({ local, cloud, email, skip = new Set(), storage 
   const done = { uploaded: 0, downloaded: 0, removed: 0, conflicts: 0, errors: [], changedLocal: false, usage: null };
   const remoteIndex = await cloud.index();
   done.usage = remoteIndex.usage;
+  done.subscription = remoteIndex.subscription || null;
   const remote = remoteIndex.projects;
   const projects = await local('/projects');
   const save = () => saveState(email, state, storage);
