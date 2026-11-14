@@ -23,6 +23,7 @@ import ShareDialog from './ShareDialog.jsx';
 import { backupBlob, backupFileName, readBackup, LAST_BACKUP_KEY } from './backup.js';
 import useAutoBackup, { markChanged } from './useAutoBackup.js';
 import useCloudSync from './useCloudSync.js';
+import Welcome from './Welcome.jsx';
 import CodeEditor from './CodeEditor.jsx';
 import EditorToolbar from './EditorToolbar.jsx';
 import { LogPanel, ProjectSearch, HistoryPanel, WordCountDialog, SettingsDialog } from './WorkspacePanels.jsx';
@@ -164,6 +165,7 @@ function App() {
   const [user, setUser] = useState(null),
     [projects, setProjects] = useState([]),
     [storageKey, setStorageKey] = useState(0),
+    [skippedLogin, setSkippedLogin] = useState(() => localStorage.getItem('texbea-skip-login') === '1'),
     [project, setProject] = useState(null),
     [active, setActive] = useState('main.tex'),
     [code, setCode] = useState(''),
@@ -207,11 +209,17 @@ function App() {
     photoRef = useRef(),
     assistantSelection = useRef();
   const autoBackup = useAutoBackup({ api, enabled: !!user, onChange: () => setStorageKey((k) => k + 1) });
+  useEffect(() => {
+    // Signing out brings the sign-in page back.
+    const back = () => setSkippedLogin(false);
+    window.addEventListener('texbea-logout', back);
+    return () => window.removeEventListener('texbea-logout', back);
+  }, []);
   const openRef = useRef(null);
   openRef.current = library ? null : project?.id;
   const cloudSync = useCloudSync({
     api,
-    enabled: DEMO && !!user,
+    enabled: DEMO,
     openId: () => openRef.current,
     onChange: () => {
       setStorageKey((k) => k + 1);
@@ -1001,6 +1009,29 @@ function App() {
     setUser(null);
     setProject(null);
   }
+  // Cloud available and nobody signed in: the first page is the sign-in page (or "continue without an account").
+  const askLogin =
+    DEMO &&
+    !shared &&
+    !skippedLogin &&
+    !cloudSync.user &&
+    cloudSync.status !== 'unavailable' &&
+    (cloudSync.status === 'loading' ||
+      cloudSync.providers?.google ||
+      cloudSync.providers?.github ||
+      cloudSync.providers?.email);
+  if (askLogin)
+    return cloudSync.status === 'loading' ? (
+      <main className="welcome" aria-busy="true" />
+    ) : (
+      <Welcome
+        cloud={cloudSync}
+        onSkip={() => {
+          localStorage.setItem('texbea-skip-login', '1');
+          setSkippedLogin(true);
+        }}
+      />
+    );
   if (shared)
     return (
       <>

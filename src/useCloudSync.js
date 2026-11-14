@@ -131,6 +131,8 @@ export default function useCloudSync({ api, enabled, onChange, openId }) {
     async logout() {
       await cloud.logout().catch(() => {});
       user.current = null;
+      localStorage.removeItem('texbea-skip-login');
+      window.dispatchEvent(new Event('texbea-logout'));
       patch({ user: null, status: 'signedout', error: '', usage: null });
     },
     async deleteAccount() {

@@ -3839,3 +3839,129 @@ button.link:hover,
 .cloud-login input {
   min-width: 200px;
 }
+
+/* First page: centered sign-in card. */
+.welcome {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: var(--bg);
+  padding: 0 16px 32px;
+}
+.welcome > header {
+  width: 100%;
+  max-width: 1100px;
+  padding: 20px 0;
+}
+.welcome-card {
+  width: 100%;
+  max-width: 420px;
+  margin-top: 6vh;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  padding: 32px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.welcome-card h1 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+.welcome-lead {
+  margin: 0 0 8px;
+  color: var(--text-2);
+}
+.welcome-card form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.welcome-card label {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.welcome-card input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+.welcome-provider,
+.welcome-primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 11px 14px;
+  border-radius: var(--radius);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.welcome-provider {
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text);
+}
+.welcome-provider:hover {
+  background: var(--hover);
+}
+.welcome-primary {
+  border: 0;
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.welcome-primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+.welcome-primary:disabled {
+  opacity: 0.6;
+}
+.welcome-g {
+  font-weight: 800;
+  color: #4285f4;
+}
+.welcome-or {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--text-3);
+  font-size: 0.85rem;
+}
+.welcome-or::before,
+.welcome-or::after {
+  content: '';
+  flex: 1;
+  border-top: 1px solid var(--border);
+}
+.welcome-note {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  font-size: 0.9rem;
+}
+.welcome-skip {
+  margin: 20px 0 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-2);
+}
+.welcome-privacy {
+  margin: 12px 0 0;
+  max-width: 420px;
+  text-align: center;
+  color: var(--text-3);
+  font-size: 0.8rem;
+}
