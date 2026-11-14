@@ -4868,3 +4868,7 @@ button.link:hover,
 .lib-table .project-panel-footer {
   border-radius: 0 0 var(--radius-lg) var(--radius-lg);
 }
+.library .lib-nav button.on:hover:not(:disabled) {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
