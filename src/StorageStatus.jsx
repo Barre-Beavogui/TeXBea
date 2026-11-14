@@ -250,7 +250,7 @@ function CloudRow({ cloud, date }) {
         title="Copie en ligne"
         actions={
           <Mini onClick={() => setPlansOpen(true)}>
-            <Sparkles size={13} /> Voir les offres (200 Mo à 10 Go)
+            <Sparkles size={13} /> Voir les offres (200 Mo à 3 Go)
           </Mini>
         }
       >

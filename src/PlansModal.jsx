@@ -20,9 +20,9 @@ const DEFAULT_PLANS = [
     id: 'standard',
     name: 'Standard',
     priceMonthly: 9,
-    quota: 2_000_000_000,
+    quota: 1_000_000_000,
     features: [
-      '2 Go de sauvegarde cloud synchronisée (10× plus)',
+      '1 Go de sauvegarde cloud synchronisée (5× plus)',
       'Compilation sur le serveur : pdfLaTeX, XeLaTeX, LuaLaTeX, Biber (120 s)',
       'Partage par e-mail avec d’autres comptes TeXBea',
     ],
@@ -32,9 +32,9 @@ const DEFAULT_PLANS = [
     id: 'pro',
     name: 'Professionnel',
     priceMonthly: 19,
-    quota: 10_000_000_000,
+    quota: 3_000_000_000,
     features: [
-      '10 Go de sauvegarde cloud synchronisée (50× plus)',
+      '3 Go de sauvegarde cloud synchronisée (15× plus)',
       'Compilation sur le serveur jusqu’à 240 s (thèses, figures TikZ lourdes)',
       'Toutes les fonctions Standard',
     ],
