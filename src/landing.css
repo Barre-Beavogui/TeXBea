@@ -62,16 +62,12 @@
   font-weight: 700;
   color: var(--copper);
 }
+/* the mark draws its own rounded square */
 .lp-logo {
-  display: grid;
-  place-items: center;
+  display: inline-flex;
   width: 30px;
   height: 30px;
-  border-radius: 7px;
-  background: var(--copper);
-  color: #fff;
-  font-weight: 700;
-  font-size: 18px;
+  color: var(--copper);
 }
 .lp-nav nav {
   display: flex;

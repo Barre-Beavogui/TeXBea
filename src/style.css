@@ -316,6 +316,14 @@ button.link:hover,
   color: #fff;
   font: 700 17px var(--font-serif);
 }
+.logo {
+  background: none;
+  color: var(--accent);
+}
+.logo svg {
+  width: 30px;
+  height: 30px;
+}
 .logo span,
 .biglogo span {
   display: none;

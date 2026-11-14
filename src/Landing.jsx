@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import LogoMark from './LogoMark.jsx';
 import {
   Bot,
   MousePointerClick,
@@ -172,11 +173,11 @@ export default function Landing({ onOpen, onLogin }) {
     <div className="lp">
       <header className="lp-nav">
         <a className="lp-brand" href="#top" aria-label="TeXBea, accueil">
-          <span className="lp-logo" aria-hidden="true">
-            B
+          <span className="lp-logo">
+            <LogoMark />
           </span>
           <span>
-            TeX<b>Bea</b>
+            TeX<b>bea</b>
           </span>
         </a>
         <nav aria-label="Sections">
@@ -369,11 +370,11 @@ export default function Landing({ onOpen, onLogin }) {
         <div className="lp-footer-main">
           <div className="lp-footer-brand">
             <span className="lp-brand">
-              <span className="lp-logo" aria-hidden="true">
-                B
+              <span className="lp-logo">
+                <LogoMark />
               </span>
               <span>
-                TeX<b>Bea</b>
+                TeX<b>bea</b>
               </span>
             </span>
             <p>L’atelier LaTeX scientifique qui tient dans ton navigateur.</p>
