@@ -983,6 +983,8 @@ function App() {
     try {
       await api('/auth/logout', { method: 'POST' });
     } catch {}
+    // The Google / GitHub / e-mail-code session lives in a cookie: without ending it, the next load signs back in.
+    if (DEMO) await cloudSync.logout().catch(() => {});
     localStorage.removeItem('tn_token');
     localStorage.removeItem('texbea_guest');
     setProfileOpen(false);
@@ -1221,12 +1223,18 @@ function App() {
           <button
             type="button"
             className="top-avatar-btn"
-            onClick={openProfileOrAuth}
-            title={user?.guest ? 'Se connecter / Créer un compte' : `Profil : ${user?.name || 'Mon compte'}`}
+            onClick={cloudSync.user ? undefined : openProfileOrAuth}
+            title={
+              cloudSync.user
+                ? `Connecté : ${cloudSync.user.email}`
+                : user?.guest
+                  ? 'Se connecter / Créer un compte'
+                  : `Profil : ${user?.name || 'Mon compte'}`
+            }
             aria-label="Mon profil"
             style={{ background: user?.avatarColor || '#1f3a60' }}
           >
-            {userInitials(user)}
+            {userInitials(cloudSync.user ? { name: cloudSync.user.name || cloudSync.user.email } : user)}
           </button>
           <button className="icon logout" aria-label="Se déconnecter" title="Se déconnecter" onClick={logout}>
             <LogOut size={16} />
