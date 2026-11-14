@@ -271,7 +271,6 @@ export default function Landing({ onOpen, onLogin }) {
           <h2 className="lp-h2">Ce que TeXBea ne fait pas</h2>
           <ul>
             {[
-              'Il ne te demande pas de compte pour écrire.',
               'Il n’envoie pas ton document à un serveur de compilation.',
               'Il n’envoie pas ton texte à une IA distante : Bea tourne sur ton appareil.',
               'Il ne t’enferme pas : un ZIP complet, avec les versions, part quand tu le demandes.',
@@ -297,10 +296,35 @@ export default function Landing({ onOpen, onLogin }) {
       </main>
 
       <footer className="lp-footer">
-        <span>© 2026 TeXBea</span>
-        <a href="https://github.com/Barre-Beavogui/TeXBea" target="_blank" rel="noreferrer">
-          Code source sur GitHub
-        </a>
+        <div className="lp-footer-main">
+          <div className="lp-footer-brand">
+            <span className="lp-brand">
+              <span className="lp-logo" aria-hidden="true">
+                B
+              </span>
+              <span>
+                TeX<b>Bea</b>
+              </span>
+            </span>
+            <p>L’atelier LaTeX scientifique qui tient dans ton navigateur.</p>
+          </div>
+          <nav aria-label="Pied de page">
+            <h3>Produit</h3>
+            <a href="#fonctions">Fonctions</a>
+            <a href="#et-aussi">Et aussi</a>
+            <a href="#confidentialite">Confidentialité</a>
+            <button onClick={onOpen}>Ouvrir l’atelier</button>
+          </nav>
+          <nav aria-label="Contact">
+            <h3>Contact</h3>
+            <a href="mailto:contact@texbea.com">contact@texbea.com</a>
+            <a href="mailto:support@texbea.com">support@texbea.com</a>
+          </nav>
+        </div>
+        <div className="lp-footer-legal">
+          <span>© 2026 TeXBea. Tous droits réservés.</span>
+          <span>texbea.com</span>
+        </div>
       </footer>
     </div>
   );
