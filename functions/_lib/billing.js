@@ -25,11 +25,11 @@ export const PLANS = {
     name: 'Standard',
     priceMonthly: 9,
     currency: 'EUR',
-    defaultQuota: 2_000_000_000, // 2 GB
+    defaultQuota: 1_000_000_000, // 1 GB
     serverCompile: true,
     compileTimeoutSec: 120,
     features: [
-      '2 Go de sauvegarde cloud synchronisée (10× plus)',
+      '1 Go de sauvegarde cloud synchronisée (5× plus)',
       'Compilation sur le serveur : pdfLaTeX, XeLaTeX, LuaLaTeX, Biber (120 s)',
       'Partage par e-mail avec d’autres comptes TeXBea',
     ],
@@ -39,11 +39,11 @@ export const PLANS = {
     name: 'Professionnel',
     priceMonthly: 19,
     currency: 'EUR',
-    defaultQuota: 10_000_000_000, // 10 GB
+    defaultQuota: 3_000_000_000, // 3 GB
     serverCompile: true,
     compileTimeoutSec: 240,
     features: [
-      '10 Go de sauvegarde cloud synchronisée (50× plus)',
+      '3 Go de sauvegarde cloud synchronisée (15× plus)',
       'Compilation sur le serveur jusqu’à 240 s (thèses, figures TikZ lourdes)',
       'Toutes les fonctions Standard',
     ],
